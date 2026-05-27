@@ -10,7 +10,7 @@ export default function Header() {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('aeronexus_user');
+    const savedUser = localStorage.getItem('jetnexus_user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
     } else {
@@ -20,7 +20,7 @@ export default function Header() {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('aeronexus_user');
+    localStorage.removeItem('jetnexus_user');
     window.location.href = '/dashboard';
   };
 
@@ -41,7 +41,7 @@ export default function Header() {
           <span className="material-symbols-outlined text-primary-container text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>
             flight_takeoff
           </span>
-          <span className="tracking-tight">AeroNexus AI</span>
+          <span className="tracking-tight">JetNexus AI</span>
         </div>
 
         {/* Center Navigation */}

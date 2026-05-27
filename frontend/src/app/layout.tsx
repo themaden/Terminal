@@ -17,7 +17,7 @@ export default function RootLayout({
 
   useEffect(() => {
     // Check if user is authenticated in localStorage
-    const savedUser = localStorage.getItem('aeronexus_user');
+    const savedUser = localStorage.getItem('jetnexus_user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
     }
@@ -32,7 +32,7 @@ export default function RootLayout({
             <span className="material-symbols-outlined text-primary-container text-4xl animate-spin">
               autorenew
             </span>
-            <p className="text-label-sm font-bold tracking-widest text-primary-fixed uppercase">AeroNexus Sync...</p>
+            <p className="text-label-sm font-bold tracking-widest text-primary-fixed uppercase">JetNexus Sync...</p>
           </div>
         </body>
       </html>
@@ -44,7 +44,7 @@ export default function RootLayout({
     return (
       <html lang="tr" className="dark">
         <head>
-          <title>AeroNexus AI Intelligence Hub - Login</title>
+          <title>JetNexus AI Intelligence Hub - Login</title>
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
           <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;700&family=Inter:wght@300;400;500;700&display=swap" rel="stylesheet" />
           <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
@@ -61,7 +61,7 @@ export default function RootLayout({
   return (
     <html lang="tr" className="dark">
       <head>
-        <title>{isOptimizationPage ? 'AeroNexus AI - Route Optimization' : 'AeroNexus AI Intelligence Hub'}</title>
+        <title>{isOptimizationPage ? 'JetNexus AI - Route Optimization' : 'JetNexus AI Intelligence Hub'}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

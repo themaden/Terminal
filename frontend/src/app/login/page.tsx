@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Loader2, ShieldCheck, KeyRound } from 'lucide-react';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('manager@aeronexus.ai');
+  const [email, setEmail] = useState('manager@jetnexus.ai');
   const [password, setPassword] = useState('••••••••');
   const [role, setRole] = useState('Ops Director');
   const [isLoading, setIsLoading] = useState(false);
@@ -14,14 +14,14 @@ export default function LoginPage() {
     setIsLoading(true);
 
     setTimeout(() => {
-      // Save authenticated user profile to local storage under new AeroNexus key
+      // Save authenticated user profile to local storage under new JetNexus key
       const userProfile = {
-        name: email === 'manager@aeronexus.ai' ? 'Hakan Yılmaz' : 'Selin Aksoy',
+        name: email === 'manager@jetnexus.ai' ? 'Hakan Yılmaz' : 'Selin Aksoy',
         email: email,
         role: role,
-        avatar: email === 'manager@aeronexus.ai' ? 'HY' : 'SA'
+        avatar: email === 'manager@jetnexus.ai' ? 'HY' : 'SA'
       };
-      localStorage.setItem('aeronexus_user', JSON.stringify(userProfile));
+      localStorage.setItem('jetnexus_user', JSON.stringify(userProfile));
       setIsLoading(false);
       window.location.href = '/dashboard';
     }, 1200);
@@ -45,7 +45,7 @@ export default function LoginPage() {
             </span>
           </div>
           <h1 className="text-2xl font-display font-bold tracking-tight text-surface-bright mt-1">
-            AeroNexus AI
+            JetNexus AI
           </h1>
           <p className="text-[10px] font-bold text-primary-fixed tracking-widest uppercase text-shadow-glow">
             AI Intelligence Hub Login
@@ -124,13 +124,13 @@ export default function LoginPage() {
           <div className="grid grid-cols-2 gap-2.5">
             <button 
               className="text-[10px] py-2 bg-white/5 border border-white/10 rounded-xl hover:border-primary-container hover:text-primary-fixed transition-all font-bold text-white/70"
-              onClick={() => handleQuickSelect('manager@aeronexus.ai', 'Ops Director')}
+              onClick={() => handleQuickSelect('manager@jetnexus.ai', 'Ops Director')}
             >
               Ops Director
             </button>
             <button 
               className="text-[10px] py-2 bg-white/5 border border-white/10 rounded-xl hover:border-primary-container hover:text-primary-fixed transition-all font-bold text-white/70"
-              onClick={() => handleQuickSelect('admin@aeronexus.ai', 'System Admin')}
+              onClick={() => handleQuickSelect('admin@jetnexus.ai', 'System Admin')}
             >
               System Admin
             </button>
