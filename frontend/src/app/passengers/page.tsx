@@ -21,20 +21,23 @@ export default function PassengersPage() {
   );
 
   return (
-    <div className="flex flex-col gap-8 w-full">
-      <div className="border-b border-flow-silver pb-4 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+    <div className="flex flex-col gap-8 w-full select-none text-white">
+      <div className="border-b border-white/10 pb-4 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <div>
-          <h1 className="text-display-lg font-display text-on-surface">Yolcu Takip ve Veri Sistemi</h1>
-          <p className="text-body-lg font-body-lg text-on-surface-variant">Uçuşlardaki tüm yolcuların detaylarını, PNR ve sadakat bilgilerini sorgulayın.</p>
+          <h1 className="text-3xl font-display font-bold text-surface-bright flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary-container">group</span>
+            Yolcu Takip ve Veri Sistemi
+          </h1>
+          <p className="text-xs text-surface-bright/60 mt-1">Uçuşlardaki tüm yolcuların detaylarını, PNR ve sadakat bilgilerini sorgulayın.</p>
         </div>
 
         {/* Search */}
-        <div className="flex items-center gap-2 bg-surface-light border border-flow-silver/60 rounded-full px-4 py-2 w-full md:w-80">
-          <Search size={16} className="text-secondary" />
+        <div className="flex items-center gap-2.5 bg-[#002349] border border-white/10 rounded-full px-4 py-2 w-full md:w-80 shadow-md">
+          <Search size={15} className="text-white/40" />
           <input 
             type="text" 
             placeholder="PNR veya yolcu adı ara..." 
-            className="bg-transparent border-none outline-none text-sm w-full text-on-surface placeholder:text-on-surface-variant/60"
+            className="bg-transparent border-none outline-none text-xs w-full text-white placeholder-white/30"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -42,52 +45,54 @@ export default function PassengersPage() {
       </div>
 
       {/* Passengers Table */}
-      <div className="glass-card rounded-2xl overflow-hidden p-0 border border-flow-silver/40">
-        <table className="w-full border-collapse text-left">
-          <thead>
-            <tr className="bg-surface-light border-b border-flow-silver/40">
-              <th className="p-4 text-label-sm font-bold uppercase text-on-surface-variant">PNR</th>
-              <th className="p-4 text-label-sm font-bold uppercase text-on-surface-variant">Yolcu Adı</th>
-              <th className="p-4 text-label-sm font-bold uppercase text-on-surface-variant">Bilet Sınıfı</th>
-              <th className="p-4 text-label-sm font-bold uppercase text-on-surface-variant">Loyalty Programı</th>
-              <th className="p-4 text-label-sm font-bold uppercase text-on-surface-variant">İletişim</th>
-              <th className="p-4 text-label-sm font-bold uppercase text-on-surface-variant">Özel Durum / İhtiyaç</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredPassengers.map((p) => (
-              <tr key={p.id} className="border-b border-flow-silver/20 hover:bg-surface-light/30 transition-colors">
-                <td className="p-4 font-mono font-bold text-primary">{p.pnr}</td>
-                <td className="p-4 font-bold text-on-surface">{p.name}</td>
-                <td className="p-4">
-                  <span className={`badge ${
-                    p.class === 'FIRST' ? 'badge-rose' : p.class === 'BUSINESS' ? 'badge-cyan' : 'badge-amber'
-                  }`}>
-                    {p.class}
-                  </span>
-                </td>
-                <td className="p-4">
-                  <span className="flex items-center gap-1 font-bold text-secondary">
-                    <Award size={16} className="text-primary" /> {p.loyalty}
-                  </span>
-                </td>
-                <td className="p-4 text-label-sm text-on-surface-variant font-mono">
-                  <div>{p.email}</div>
-                  <div className="mt-0.5">{p.phone}</div>
-                </td>
-                <td className="p-4">
-                  {p.special !== 'Yok' ? (
-                    <span className="flex items-center gap-1 text-label-sm font-bold text-error bg-error-container/10 border border-error/20 px-2 py-0.5 rounded">
-                      <ShieldAlert size={14} /> {p.special}
-                    </span>
-                  ) : (
-                    <span className="text-label-sm text-on-surface-variant">Standart Yolcu</span>
-                  )}
-                </td>
+      <div className="glass-card rounded-2xl overflow-hidden p-0 border border-white/5 shadow-2xl">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-left text-xs">
+            <thead>
+              <tr className="bg-[#002349]/70 border-b border-white/10 text-surface-bright/60">
+                <th className="p-4 font-bold uppercase tracking-wider">PNR Kodu</th>
+                <th className="p-4 font-bold uppercase tracking-wider">Yolcu Adı</th>
+                <th className="p-4 font-bold uppercase tracking-wider">Bilet Sınıfı</th>
+                <th className="p-4 font-bold uppercase tracking-wider">Loyalty Programı</th>
+                <th className="p-4 font-bold uppercase tracking-wider">İletişim Kanalları</th>
+                <th className="p-4 font-bold uppercase tracking-wider">Özel Durum / İhtiyaç</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filteredPassengers.map((p) => (
+                <tr key={p.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                  <td className="p-4 font-mono font-bold text-primary-fixed">{p.pnr}</td>
+                  <td className="p-4 font-bold text-surface-bright">{p.name}</td>
+                  <td className="p-4">
+                    <span className={`badge ${
+                      p.class === 'FIRST' ? 'badge-rose' : p.class === 'BUSINESS' ? 'badge-cyan' : 'badge-amber'
+                    }`}>
+                      {p.class}
+                    </span>
+                  </td>
+                  <td className="p-4">
+                    <span className="flex items-center gap-1 font-bold text-[#4ade80]">
+                      <Award size={14} className="text-primary-container" /> {p.loyalty}
+                    </span>
+                  </td>
+                  <td className="p-4 font-mono text-[11px] text-surface-bright/70">
+                    <div>{p.email}</div>
+                    <div className="mt-0.5 text-white/40">{p.phone}</div>
+                  </td>
+                  <td className="p-4">
+                    {p.special !== 'Yok' ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-400 bg-rose-950/20 border border-rose-500/20 px-2 py-0.5 rounded">
+                        <ShieldAlert size={12} /> {p.special}
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-surface-bright/50">Standart Yolcu</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

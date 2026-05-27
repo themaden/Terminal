@@ -12,68 +12,87 @@ export default function FlightsPage() {
     { id: 5, flight: "TK1587", origin: "IST", dest: "FRA", departure: "21:00", arrival: "00:00", aircraft: "Airbus A321neo", status: "SCHEDULED", capacity: "15 / 190 (Boş Koltuk)" }
   ]);
 
+  const [loading, setLoading] = useState(false);
+
+  const handleRefresh = () => {
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      alert("AeroSys HUD: Uçuş telemetrileri güncellendi.");
+    }, 1000);
+  };
+
   return (
-    <div className="flex flex-col gap-8 w-full">
-      <div className="border-b border-flow-silver pb-4 flex justify-between items-center">
+    <div className="flex flex-col gap-8 w-full select-none text-white">
+      <div className="border-b border-white/10 pb-4 flex justify-between items-center">
         <div>
-          <h1 className="text-display-lg font-display text-on-surface">Uçuş Kontrol ve Durum Paneli</h1>
-          <p className="text-body-lg font-body-lg text-on-surface-variant">Filodaki tüm uçuşların anlık durumlarını, koltuk kapasitelerini ve rotalarını izleyin.</p>
+          <h1 className="text-3xl font-display font-bold text-surface-bright flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary-container" style={{ fontVariationSettings: "'FILL' 1" }}>
+              flight_takeoff
+            </span>
+            Uçuş Kontrol ve Durum Paneli
+          </h1>
+          <p className="text-xs text-surface-bright/60 mt-1">Filodaki tüm uçuşların anlık durumlarını, koltuk kapasitelerini ve rotalarını izleyin.</p>
         </div>
 
         <button 
-          className="px-4 py-2 border border-flow-silver/60 rounded-full hover:border-primary hover:text-primary transition-all flex items-center gap-2 text-label-sm font-bold text-on-surface bg-white"
-          onClick={() => alert("Uçuş telemetrileri güncellendi.")}
+          className="px-4 py-2 bg-white/5 border border-white/10 rounded-full hover:border-primary-container hover:text-primary-fixed transition-all flex items-center gap-2 text-xs font-bold text-surface-bright"
+          onClick={handleRefresh}
+          disabled={loading}
         >
-          <RefreshCw size={14} /> Verileri Yenile
+          <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> 
+          {loading ? 'Güncelleniyor...' : 'Verileri Yenile'}
         </button>
       </div>
 
       {/* Flight Information Display System (FIDS) Grid */}
-      <div className="glass-card rounded-2xl overflow-hidden p-0 border border-flow-silver/40">
-        <table className="w-full border-collapse text-left">
-          <thead>
-            <tr className="bg-surface-light border-b border-flow-silver/40">
-              <th className="p-4 text-label-sm font-bold uppercase text-on-surface-variant">Uçuş No</th>
-              <th className="p-4 text-label-sm font-bold uppercase text-on-surface-variant">Güzergah</th>
-              <th className="p-4 text-label-sm font-bold uppercase text-on-surface-variant">Kalkış / Varış</th>
-              <th className="p-4 text-label-sm font-bold uppercase text-on-surface-variant">Uçak Tipi</th>
-              <th className="p-4 text-label-sm font-bold uppercase text-on-surface-variant">Uçuş Durumu</th>
-              <th className="p-4 text-label-sm font-bold uppercase text-on-surface-variant">Müsait Kapasite</th>
-            </tr>
-          </thead>
-          <tbody>
-            {flights.map((f) => (
-              <tr key={f.id} className="border-b border-flow-silver/20 hover:bg-surface-light/30 transition-colors">
-                <td className="p-4 font-display font-bold text-on-surface text-lg">
-                  <div className="flex items-center gap-2">
-                    <Plane size={16} className="text-primary rotate-45" /> {f.flight}
-                  </div>
-                </td>
-                <td className="p-4">
-                  <span className="font-mono text-label-md font-bold text-secondary">
-                    {f.origin} ➔ {f.dest}
-                  </span>
-                </td>
-                <td className="p-4 font-sans text-label-md text-on-surface">
-                  <div className="flex items-center gap-1 font-semibold">
-                    <Calendar size={14} className="text-secondary" /> {f.departure} kalkış / {f.arrival} varış
-                  </div>
-                </td>
-                <td className="p-4 text-label-md text-on-surface-variant font-medium">{f.aircraft}</td>
-                <td className="p-4">
-                  <span className={`badge ${
-                    f.status === 'CANCELLED' ? 'badge-rose' : f.status === 'DELAYED' ? 'badge-amber' : 'badge-emerald'
-                  }`}>
-                    {f.status}
-                  </span>
-                </td>
-                <td className="p-4 font-mono font-bold text-on-surface-variant text-label-md">
-                  {f.capacity}
-                </td>
+      <div className="glass-card rounded-2xl overflow-hidden p-0 border border-white/5 shadow-2xl">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-left text-xs">
+            <thead>
+              <tr className="bg-[#002349]/70 border-b border-white/10 text-surface-bright/60">
+                <th className="p-4 font-bold uppercase tracking-wider">Uçuş No</th>
+                <th className="p-4 font-bold uppercase tracking-wider">Güzergah</th>
+                <th className="p-4 font-bold uppercase tracking-wider">Kalkış / Varış</th>
+                <th className="p-4 font-bold uppercase tracking-wider">Uçak Tipi</th>
+                <th className="p-4 font-bold uppercase tracking-wider">Uçuş Durumu</th>
+                <th className="p-4 font-bold uppercase tracking-wider">Müsait Kapasite</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {flights.map((f) => (
+                <tr key={f.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                  <td className="p-4 font-display font-bold text-surface-bright text-sm">
+                    <div className="flex items-center gap-2">
+                      <Plane size={15} className="text-primary-container rotate-45" /> {f.flight}
+                    </div>
+                  </td>
+                  <td className="p-4">
+                    <span className="font-mono text-xs font-bold text-[#adc8f6]">
+                      {f.origin} ➔ {f.dest}
+                    </span>
+                  </td>
+                  <td className="p-4 font-sans text-xs text-surface-bright">
+                    <div className="flex items-center gap-1.5 font-medium">
+                      <Calendar size={13} className="text-white/40" /> {f.departure} kalkış / {f.arrival} varış
+                    </div>
+                  </td>
+                  <td className="p-4 text-xs text-surface-bright/70 font-medium">{f.aircraft}</td>
+                  <td className="p-4">
+                    <span className={`badge ${
+                      f.status === 'CANCELLED' ? 'badge-rose' : f.status === 'DELAYED' ? 'badge-amber' : 'badge-emerald'
+                    }`}>
+                      {f.status}
+                    </span>
+                  </td>
+                  <td className="p-4 font-mono font-bold text-surface-bright/70 text-xs">
+                    {f.capacity}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

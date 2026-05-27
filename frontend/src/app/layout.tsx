@@ -59,7 +59,7 @@ export default function RootLayout({
   const isOptimizationPage = pathname === '/optimization';
 
   return (
-    <html lang="tr" className={isOptimizationPage ? 'dark' : 'light'}>
+    <html lang="tr" className="dark">
       <head>
         <title>{isOptimizationPage ? 'AeroSys Precision - Route Optimization' : 'AeroSys AI Intelligence Hub'}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -86,10 +86,10 @@ export default function RootLayout({
           }
         `}} />
       </head>
-      <body className={`font-sans antialiased relative min-h-screen flex flex-col ${
+      <body className={`font-sans antialiased relative min-h-screen flex flex-col bg-[#001229] text-white flow-bg ${
         isOptimizationPage 
-          ? 'bg-[#001b3c] text-white overflow-hidden h-screen w-screen' 
-          : 'bg-surface text-on-surface flow-bg overflow-x-hidden'
+          ? 'overflow-hidden h-screen w-screen' 
+          : 'overflow-x-hidden'
       }`}>
         {!isOptimizationPage && <Header />}
         

@@ -13,6 +13,9 @@ export default function Header() {
     const savedUser = localStorage.getItem('aerosys_user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
+    } else {
+      // Default fallback session if local storage hasn't been set yet
+      setUser({ name: 'Hakan Yılmaz', role: 'Operations Director', avatar: 'HY' });
     }
   }, []);
 
@@ -31,11 +34,11 @@ export default function Header() {
   ];
 
   return (
-    <header className="fixed top-0 left-0 w-full z-50 bg-surface-bright/80 backdrop-blur-xl shadow-sm border-b border-flow-silver/30">
+    <header className="fixed top-0 left-0 w-full z-50 bg-surface-dark/90 backdrop-blur-xl shadow-none border-b border-white/10 select-none">
       <div className="flex justify-between items-center px-6 md:px-16 py-4 max-w-7xl mx-auto w-full">
         {/* Brand Logo & Icon */}
-        <div className="flex items-center gap-4 text-2xl font-display font-bold text-on-surface">
-          <span className="material-symbols-outlined text-primary text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+        <div className="flex items-center gap-4 text-2xl font-display font-bold text-surface-bright">
+          <span className="material-symbols-outlined text-primary-container text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>
             flight_takeoff
           </span>
           <span className="tracking-tight">AeroSys Precision</span>
@@ -49,10 +52,10 @@ export default function Header() {
               <Link 
                 key={item.name}
                 href={item.path}
-                className={`font-sans text-sm transition-colors duration-300 pb-1 ${
+                className={`font-sans text-sm transition-all duration-300 pb-1 ${
                   isActive 
-                    ? 'text-primary border-b-2 border-primary font-bold' 
-                    : 'text-on-surface hover:text-primary'
+                    ? 'text-primary-fixed border-b-2 border-primary-container font-bold text-shadow-glow' 
+                    : 'text-surface-bright/70 hover:text-primary-fixed'
                 }`}
               >
                 {item.name}
@@ -64,29 +67,35 @@ export default function Header() {
         {/* Right-side Auth & Actions */}
         <div className="flex items-center gap-4">
           {user ? (
-            <div className="flex items-center gap-3 bg-surface-light border border-flow-silver/40 rounded-full px-4 py-1.5 shadow-sm">
-              <div className="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-xs font-display">
+            <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 shadow-sm">
+              <div className="w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold text-xs font-display">
                 {user.avatar}
               </div>
               <div className="text-left hidden lg:block">
-                <div className="text-xs font-bold text-on-surface leading-none">{user.name}</div>
-                <span className="text-[10px] text-on-surface-variant font-medium">{user.role}</span>
+                <div className="text-xs font-bold text-surface-bright leading-none">{user.name}</div>
+                <span className="text-[10px] text-surface-bright/50 font-medium">{user.role}</span>
               </div>
               <button 
                 onClick={handleLogout}
-                className="text-secondary hover:text-primary transition-colors p-1"
+                className="text-white/40 hover:text-primary-container transition-colors p-1 ml-1 border-l border-white/10 pl-2"
                 title="Oturumu Kapat"
               >
-                <LogOut size={16} />
+                <LogOut size={14} />
               </button>
             </div>
           ) : (
-            <button className="bg-primary text-on-primary font-sans text-sm px-6 py-2 rounded-full hover:bg-accent-red-hover transition-colors duration-300 shadow-sm font-bold">
+            <button className="bg-primary-container text-on-primary font-sans text-sm px-6 py-2 rounded-full hover:bg-accent-red-hover transition-colors duration-300 shadow-sm font-bold">
               Giriş
             </button>
           )}
         </div>
       </div>
+      
+      <style dangerouslySetInnerHTML={{__html: `
+        .text-shadow-glow {
+          text-shadow: 0 0 10px rgba(255, 218, 216, 0.6);
+        }
+      `}} />
     </header>
   );
 }
