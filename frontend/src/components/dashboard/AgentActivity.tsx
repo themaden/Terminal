@@ -1,5 +1,5 @@
 import React from 'react';
-import { Cpu, CheckCircle2, ShieldAlert, AlertTriangle } from 'lucide-react';
+import { Cpu } from 'lucide-react';
 
 interface AgentCardProps {
   name: string;
@@ -49,7 +49,7 @@ export default function AgentActivity() {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <Cpu size={18} color="#8b5cf6" />
+        <Cpu size={16} color="#c8102e" className="animate-pulse" />
         <h3 style={styles.title}>Multi-Agent Karar Sistemi Aktivitesi (CrewAI)</h3>
       </div>
       <div style={styles.grid}>
@@ -63,10 +63,10 @@ export default function AgentActivity() {
 
 function AgentCard({ name, role, status, activity, confidence, glowColor }: AgentCardProps) {
   const glowStyle = {
-    cyan: { boxShadow: '0 0 15px rgba(6, 182, 212, 0.1)', borderTop: '2px solid #06b6d4' },
-    rose: { boxShadow: '0 0 15px rgba(244, 63, 94, 0.1)', borderTop: '2px solid #f43f5e' },
-    emerald: { boxShadow: '0 0 15px rgba(16, 185, 129, 0.1)', borderTop: '2px solid #10b981' },
-    violet: { boxShadow: '0 0 15px rgba(139, 92, 246, 0.1)', borderTop: '2px solid #8b5cf6' }
+    cyan: { boxShadow: '0 0 15px rgba(6, 182, 212, 0.12)', borderTop: '3px solid #06b6d4' },
+    rose: { boxShadow: '0 0 15px rgba(244, 63, 94, 0.12)', borderTop: '3px solid #f43f5e' },
+    emerald: { boxShadow: '0 0 15px rgba(16, 185, 129, 0.12)', borderTop: '3px solid #10b981' },
+    violet: { boxShadow: '0 0 15px rgba(139, 92, 246, 0.12)', borderTop: '3px solid #8b5cf6' }
   }[glowColor];
 
   const statusBadge = {
@@ -98,20 +98,24 @@ const styles = {
   container: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: '1rem',
-    width: '100%'
+    gap: '1.25rem',
+    width: '100%',
+    color: '#ffffff',
+    userSelect: 'none' as const
   },
   header: {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.5rem',
-    borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
-    paddingBottom: '0.5rem'
+    gap: '0.6rem',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+    paddingBottom: '0.6rem'
   },
   title: {
-    fontSize: '1rem',
-    fontWeight: '600',
-    color: '#f1f5f9'
+    fontSize: '0.85rem',
+    fontWeight: '700',
+    color: '#adc8f6',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.05em'
   },
   grid: {
     display: 'grid',
@@ -122,7 +126,8 @@ const styles = {
     display: 'flex',
     flexDirection: 'column' as const,
     gap: '0.75rem',
-    backgroundColor: '#111827',
+    background: 'rgba(0, 35, 73, 0.55)',
+    border: '1px solid rgba(255, 255, 255, 0.05)',
     padding: '1.25rem',
     borderRadius: '10px'
   },
@@ -132,20 +137,23 @@ const styles = {
     alignItems: 'flex-start'
   },
   agentName: {
-    fontSize: '0.9rem',
+    fontSize: '0.85rem',
     fontWeight: '700',
-    color: '#f1f5f9',
-    fontFamily: 'JetBrains Mono, monospace'
+    color: '#ffffff',
+    fontFamily: 'Inter, sans-serif'
   },
   agentRole: {
-    fontSize: '0.75rem',
-    color: '#94a3b8'
+    fontSize: '0.7rem',
+    color: '#adc8f6',
+    fontWeight: '500',
+    marginTop: '0.15rem',
+    display: 'block'
   },
   activityText: {
-    fontSize: '0.8rem',
+    fontSize: '0.75rem',
     color: '#e2e8f0',
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
-    padding: '0.5rem',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    padding: '0.6rem',
     borderRadius: '6px',
     border: '1px solid rgba(255, 255, 255, 0.04)',
     lineHeight: '1.4'
@@ -153,16 +161,17 @@ const styles = {
   footer: {
     display: 'flex',
     justifyContent: 'space-between',
-    fontSize: '0.75rem',
-    borderTop: '1px solid rgba(148, 163, 184, 0.08)',
+    fontSize: '0.7rem',
+    borderTop: '1px solid rgba(255, 255, 255, 0.06)',
     paddingTop: '0.5rem'
   },
   confidenceLabel: {
-    color: '#64748b'
+    color: '#adc8f6',
+    fontWeight: '500'
   },
   confidenceValue: {
     fontWeight: '700',
     color: '#34d399',
-    fontFamily: 'JetBrains Mono, monospace'
+    fontFamily: 'Inter, sans-serif'
   }
 };

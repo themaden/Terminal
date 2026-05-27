@@ -80,13 +80,13 @@ export default function StatsGrid() {
 
 function StatCard({ title, value, label, trend, trendUp, glowColor }: StatCardProps) {
   const glowStyle = {
-    rose: { borderLeft: '4px solid #f43f5e', boxShadow: '0 4px 20px rgba(244, 63, 94, 0.1)' },
-    amber: { borderLeft: '4px solid #f59e0b', boxShadow: '0 4px 20px rgba(245, 158, 11, 0.1)' },
-    emerald: { borderLeft: '4px solid #10b981', boxShadow: '0 4px 20px rgba(16, 185, 129, 0.1)' },
-    cyan: { borderLeft: '4px solid #06b6d4', boxShadow: '0 4px 20px rgba(6, 182, 212, 0.1)' }
+    rose: { borderLeft: '4px solid #f43f5e', boxShadow: '0 4px 24px rgba(244, 63, 94, 0.15)' },
+    amber: { borderLeft: '4px solid #f59e0b', boxShadow: '0 4px 24px rgba(245, 158, 11, 0.15)' },
+    emerald: { borderLeft: '4px solid #10b981', boxShadow: '0 4px 24px rgba(16, 185, 129, 0.15)' },
+    cyan: { borderLeft: '4px solid #06b6d4', boxShadow: '0 4px 24px rgba(6, 182, 212, 0.15)' }
   }[glowColor];
 
-  const trendStyle = trendUp ? { color: '#34d399' } : { color: '#22d399' };
+  const trendStyle = trendUp ? { color: '#34d399' } : { color: '#38bdf8' };
 
   return (
     <div className="glass-card" style={{ ...styles.card, ...glowStyle }}>
@@ -113,9 +113,10 @@ const styles = {
   card: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: '0.5rem',
+    gap: '0.6rem',
     borderRadius: '12px',
-    backgroundColor: '#111827',
+    background: 'rgba(0, 35, 73, 0.55)',
+    border: '1px solid rgba(255, 255, 255, 0.05)',
     padding: '1.25rem'
   },
   cardHeader: {
@@ -124,28 +125,29 @@ const styles = {
     justifyContent: 'space-between'
   },
   cardTitle: {
-    fontSize: '0.8rem',
-    fontWeight: '600',
-    color: '#94a3b8',
+    fontSize: '0.75rem',
+    fontWeight: '700',
+    color: '#adc8f6',
     textTransform: 'uppercase' as const,
     letterSpacing: '0.05em'
   },
   trend: {
-    fontSize: '0.75rem',
-    fontWeight: '700',
+    fontSize: '0.7rem',
+    fontWeight: '800',
     padding: '0.15rem 0.4rem',
     borderRadius: '4px',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)'
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    letterSpacing: '0.025em'
   },
   value: {
-    fontSize: '2.25rem',
+    fontSize: '2rem',
     fontWeight: '700',
-    color: '#f1f5f9',
-    fontFamily: 'JetBrains Mono, monospace'
+    color: '#ffffff',
+    fontFamily: 'Inter, sans-serif'
   },
   divider: {
     height: '1px',
-    backgroundColor: 'rgba(148, 163, 184, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     margin: '0.25rem 0'
   },
   cardFooter: {
@@ -153,8 +155,8 @@ const styles = {
     alignItems: 'center'
   },
   footerText: {
-    fontSize: '0.75rem',
-    color: '#64748b',
+    fontSize: '0.7rem',
+    color: '#e2e8f0',
     fontWeight: '500'
   }
 };
