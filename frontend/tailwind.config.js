@@ -65,13 +65,6 @@ module.exports = {
         "xl": "0.75rem",
         "full": "9999px"
       },
-      spacing: {
-        "max-width": "1280px",
-        "base": "8px",
-        "margin-desktop": "64px",
-        "margin-mobile": "20px",
-        "gutter": "16px"
-      },
       fontFamily: {
         sans: ["Inter", "sans-serif"],
         display: ["Outfit", "sans-serif"],

@@ -14,12 +14,33 @@ export default function RootLayout({
       <head>
         <title>AeroSys AI Intelligence Hub</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;700&family=Inter:wght@300;400;500;700&display=swap" rel="stylesheet" />
-        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
+        
+        {/* Force Material Icon font rendering styling */}
+        <style dangerouslySetInnerHTML={{__html: `
+          .material-symbols-outlined {
+            font-family: 'Material Symbols Outlined' !important;
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            -webkit-font-smoothing: antialiased;
+          }
+        `}} />
       </head>
       <body className="bg-surface text-on-surface font-sans antialiased flow-bg min-h-screen flex flex-col relative overflow-x-hidden">
         <Header />
-        <main className="flex-grow pt-32 pb-16 px-margin-mobile md:px-margin-desktop max-w-max-width mx-auto w-full flex flex-col gap-12 z-10">
+        {/* Standard Tailwind container class offsets for pixel perfect rendering */}
+        <main className="flex-grow pt-32 pb-16 px-6 md:px-16 max-w-7xl mx-auto w-full flex flex-col gap-12 z-10">
           {children}
         </main>
       </body>
