@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import LoginPage from '@/app/login/page';
 import '@/app/globals.css';
@@ -12,6 +13,7 @@ export default function RootLayout({
 }) {
   const [user, setUser] = useState<any>(null);
   const [isChecking, setIsChecking] = useState(true);
+  const pathname = usePathname();
 
   useEffect(() => {
     // Check if user is authenticated in localStorage
@@ -54,10 +56,12 @@ export default function RootLayout({
     );
   }
 
+  const isOptimizationPage = pathname === '/optimization';
+
   return (
-    <html lang="tr" className="light">
+    <html lang="tr" className={isOptimizationPage ? 'dark' : 'light'}>
       <head>
-        <title>AeroSys AI Intelligence Hub</title>
+        <title>{isOptimizationPage ? 'AeroSys Precision - Route Optimization' : 'AeroSys AI Intelligence Hub'}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -82,11 +86,20 @@ export default function RootLayout({
           }
         `}} />
       </head>
-      <body className="bg-surface text-on-surface font-sans antialiased flow-bg min-h-screen flex flex-col relative overflow-x-hidden">
-        <Header />
-        <main className="flex-grow pt-32 pb-16 px-6 md:px-16 max-w-7xl mx-auto w-full flex flex-col gap-12 z-10">
-          {children}
-        </main>
+      <body className={`font-sans antialiased relative min-h-screen flex flex-col ${
+        isOptimizationPage 
+          ? 'bg-[#001b3c] text-white overflow-hidden h-screen w-screen' 
+          : 'bg-surface text-on-surface flow-bg overflow-x-hidden'
+      }`}>
+        {!isOptimizationPage && <Header />}
+        
+        {isOptimizationPage ? (
+          children
+        ) : (
+          <main className="flex-grow pt-32 pb-16 px-6 md:px-16 max-w-7xl mx-auto w-full flex flex-col gap-12 z-10">
+            {children}
+          </main>
+        )}
       </body>
     </html>
   );

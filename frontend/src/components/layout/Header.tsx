@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LogOut, User } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 
 export default function Header() {
   const pathname = usePathname();
@@ -24,6 +24,7 @@ export default function Header() {
   const menuItems = [
     { name: 'Sistem Durumu', path: '/dashboard' },
     { name: 'Kriz Yönetimi', path: '/crisis' },
+    { name: 'Rota Optimizasyonu', path: '/optimization' },
     { name: 'Yolcu Takip', path: '/passengers' },
     { name: 'Uçuş Kontrol', path: '/flights' },
     { name: 'Audit Günlüğü', path: '/audit' }
