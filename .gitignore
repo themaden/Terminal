@@ -1,0 +1,54 @@
+# ── Python ────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+*.egg
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# ── Node.js ───────────────────────────
+node_modules/
+.next/
+out/
+.turbo/
+npm-debug.log*
+
+# ── Go ────────────────────────────────
+/services/ingestion-service/bin/
+*.exe
+*.exe~
+*.dll
+
+# ── Environment ───────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── IDE ───────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Docker ────────────────────────────
+docker-compose.override.yml
+
+# ── OS ────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Logs & Data ───────────────────────
+*.log
+*.sqlite3
+data/
