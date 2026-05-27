@@ -1,270 +1,39 @@
-/* 🛫 Aero-Agent Design System & Premium Aesthetics */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --bg-primary: #0a0e1a;         /* Deep Space Blue */
-  --bg-secondary: #111827;       /* Dark Panel Blue */
-  --bg-glass: rgba(17, 24, 39, 0.75);
-  --bg-glass-hover: rgba(17, 24, 39, 0.85);
-  
-  --accent-cyan: #06b6d4;        /* Info / Cyan Accent */
-  --accent-emerald: #10b981;     /* Success / Safe Accent */
-  --accent-amber: #f59e0b;       /* Warning / Caution */
-  --accent-rose: #f43f5e;        /* Critical / Cancelled */
-  --accent-violet: #8b5cf6;      /* Multi-Agent AI activity */
-  
-  --text-primary: #f1f5f9;       /* Slate White */
-  --text-secondary: #94a3b8;     /* Slate Gray */
-  --text-muted: #64748b;
-  
-  --border-glass: rgba(148, 163, 184, 0.1);
-  --border-glass-active: rgba(6, 182, 212, 0.4);
-  
-  --glow-cyan: 0 0 20px rgba(6, 182, 212, 0.25);
-  --glow-rose: 0 0 20px rgba(244, 63, 94, 0.25);
-  --glow-emerald: 0 0 20px rgba(16, 185, 129, 0.25);
-  --glow-violet: 0 0 20px rgba(139, 92, 246, 0.25);
-  
-  --font-sans: 'Inter', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-  
-  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+/* 🛫 AeroSys Precision Custom Aesthetics */
+.flow-bg {
+    background-image: url('data:image/svg+xml;utf8,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><path d="M0 100 C 20 0 50 0 100 100 Z" fill="none" stroke="%23E2E4E7" stroke-width="0.5" opacity="0.3"/></svg>');
+    background-size: 200px 200px;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-body {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  font-family: var(--font-sans);
-  overflow-x: hidden;
-  line-height: 1.5;
-}
-
-code, pre {
-  font-family: var(--font-mono);
-}
-
-/* ── Typography & Headings ────────────────── */
-h1, h2, h3, h4, h5, h6 {
-  font-weight: 600;
-  letter-spacing: -0.025em;
-  color: var(--text-primary);
-}
-
-/* ── Custom Scrollbar ─────────────────────── */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: var(--bg-primary);
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.2);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-cyan);
-}
-
-/* ── Glassmorphism Premium Utility ────────── */
 .glass-card {
-  background: var(--bg-glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--border-glass);
-  border-radius: 12px;
-  padding: 1.5rem;
-  transition: var(--transition-smooth);
+    background: rgba(249, 249, 255, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(226, 228, 231, 0.5);
+    box-shadow: 0 8px 32px 0 rgba(0, 35, 73, 0.05);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .glass-card:hover {
-  border-color: rgba(148, 163, 184, 0.2);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  background: var(--bg-glass-hover);
+    box-shadow: 0 12px 40px 0 rgba(0, 35, 73, 0.08);
+    border-color: rgba(226, 228, 231, 0.8);
 }
 
-.glow-cyan-hover:hover {
-  border-color: var(--accent-cyan);
-  box-shadow: var(--glow-cyan);
+/* Custom Scrollbar for AeroSys telemetry grids */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
 }
-
-.glow-rose-hover:hover {
-  border-color: var(--accent-rose);
-  box-shadow: var(--glow-rose);
+::-webkit-scrollbar-track {
+    background: #f9f9ff;
 }
-
-/* ── Buttons ─────────────────────────────── */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1.25rem;
-  border-radius: 8px;
-  font-weight: 500;
-  font-size: 0.875rem;
-  cursor: pointer;
-  border: 1px solid transparent;
-  transition: var(--transition-smooth);
-  font-family: var(--font-sans);
+::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.3);
+    border-radius: 3px;
 }
-
-.btn-primary {
-  background: var(--accent-cyan);
-  color: #000;
-  font-weight: 600;
-}
-.btn-primary:hover {
-  box-shadow: var(--glow-cyan);
-  transform: translateY(-1px);
-  background: #22d3ee;
-}
-
-.btn-secondary {
-  background: transparent;
-  border: 1px solid var(--border-glass);
-  color: var(--text-primary);
-}
-.btn-secondary:hover {
-  border-color: var(--accent-cyan);
-  color: var(--accent-cyan);
-}
-
-.btn-danger {
-  background: rgba(244, 63, 94, 0.15);
-  border: 1px solid var(--accent-rose);
-  color: #fda4af;
-}
-.btn-danger:hover {
-  background: var(--accent-rose);
-  color: #fff;
-  box-shadow: var(--glow-rose);
-}
-
-/* ── Badges ──────────────────────────────── */
-.badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.25rem 0.5rem;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-family: var(--font-mono);
-}
-
-.badge-cyan {
-  background: rgba(6, 182, 212, 0.1);
-  color: #22d3ee;
-  border: 1px solid rgba(6, 182, 212, 0.2);
-}
-
-.badge-emerald {
-  background: rgba(16, 185, 129, 0.1);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.2);
-}
-
-.badge-amber {
-  background: rgba(245, 158, 11, 0.1);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, 0.2);
-}
-
-.badge-rose {
-  background: rgba(244, 63, 94, 0.1);
-  color: #fca5a5;
-  border: 1px solid rgba(244, 63, 94, 0.2);
-}
-
-.badge-violet {
-  background: rgba(139, 92, 246, 0.1);
-  color: #c084fc;
-  border: 1px solid rgba(139, 92, 246, 0.2);
-}
-
-/* ── Tables ──────────────────────────────── */
-.custom-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-  font-size: 0.875rem;
-}
-
-.custom-table th {
-  padding: 1rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  border-bottom: 1px solid var(--border-glass);
-  text-transform: uppercase;
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
-}
-
-.custom-table td {
-  padding: 1rem;
-  border-bottom: 1px solid var(--border-glass);
-  color: var(--text-primary);
-  transition: var(--transition-smooth);
-}
-
-.custom-table tr:hover td {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-/* ── Layout & Sidebar Structure ───────────── */
-.dashboard-layout {
-  display: flex;
-  min-height: 100vh;
-}
-
-.main-content {
-  flex-grow: 1;
-  padding: 2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-  margin-left: 260px; /* Sidebar offset */
-}
-
-/* ── Micro-Animations ────────────────────── */
-@keyframes pulseGlow {
-  0%, 100% {
-    opacity: 0.6;
-    box-shadow: 0 0 15px rgba(6, 182, 212, 0.2);
-  }
-  50% {
-    opacity: 1;
-    box-shadow: 0 0 25px rgba(6, 182, 212, 0.4);
-  }
-}
-
-.pulse-glow-cyan {
-  animation: pulseGlow 2s infinite ease-in-out;
-}
-
-@keyframes pulseDot {
-  0%, 100% {
-    transform: scale(0.9);
-    opacity: 0.5;
-  }
-  50% {
-    transform: scale(1.2);
-    opacity: 1;
-  }
-}
-
-.pulse-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-  animation: pulseDot 1.5s infinite ease-in-out;
+::-webkit-scrollbar-thumb:hover {
+    background: #9e001f;
 }
