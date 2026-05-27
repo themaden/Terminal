@@ -1,4 +1,4 @@
-# ── Python ────────────────────────────
+# ── Python ─────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
@@ -14,41 +14,74 @@ build/
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
 
-# ── Node.js ───────────────────────────
+# ── Node.js ─────────────────────────────────────
 node_modules/
 .next/
 out/
 .turbo/
 npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
 
-# ── Go ────────────────────────────────
+# ── Go ──────────────────────────────────────────
 /services/ingestion-service/bin/
+/services/ingestion-service/ingestion-service
 *.exe
 *.exe~
 *.dll
 
-# ── Environment ───────────────────────
+# ── Environment & Secrets ───────────────────────
+# ⚠️  NEVER commit real .env files
 .env
 .env.local
 .env.*.local
+.env.production
+.env.staging
+*.pem
+*.key
+*.p12
+*.pfx
+*.cert
+*.crt
+secrets/
+*secret*
+*credential*
 
-# ── IDE ───────────────────────────────
+# ── Database ────────────────────────────────────
+*.sqlite3
+*.db
+*.sqlite
+
+# ── IDE ─────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# ── Docker ────────────────────────────
+# ── Docker ──────────────────────────────────────
 docker-compose.override.yml
 
-# ── OS ────────────────────────────────
+# ── OS ──────────────────────────────────────────
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# ── Logs & Data ───────────────────────
+# ── Logs & Data ─────────────────────────────────
 *.log
-*.sqlite3
+logs/
 data/
+
+# ── Terraform ───────────────────────────────────
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# ── Compiled Binaries ────────────────────────────
+*.out
+*.test

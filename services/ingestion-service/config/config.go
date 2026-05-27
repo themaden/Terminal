@@ -20,7 +20,7 @@ func Load() *Config {
 	port := getEnv("PORT", "8002")
 	brokersRaw := getEnv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 	brokers := strings.Split(brokersRaw, ",")
-	apiKey := getEnv("API_KEY", "aero-agent-api-key-dev")
+	apiKey := getEnv("API_KEY", "") // Must be set via API_KEY environment variable
 	logLevel := getEnv("LOG_LEVEL", "info")
 	rateLimit, _ := strconv.Atoi(getEnv("RATE_LIMIT", "100"))
 	if rateLimit <= 0 {
