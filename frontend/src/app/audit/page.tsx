@@ -9,7 +9,7 @@ export default function AuditPage() {
     { id: 2, time: "2026-05-27 17:14:24", agent: "RebookingAgent", action: "REBOOK_VALIDATED", detail: "25 yolcu için TK1983/TK1985 seferlerine koltuk tahsisleri ve alternatif bağlantı süreleri doğrulandı.", level: "INFO" },
     { id: 3, time: "2026-05-27 17:14:24", agent: "CompensationAgent", action: "EU261_CALCULATED", detail: "EU261/2004 regülasyonuna göre yolcu başı 400 EUR olmak üzere toplam 10,000 EUR tazminat hesaplandı.", level: "INFO" },
     { id: 4, time: "2026-05-27 17:14:25", agent: "ComplianceAgent", action: "AUDIT_SIGNED", detail: "Tüm kararlar uluslararası sivil havacılık regülasyonlarına (EU261) %100 uyumlu bulundu.", level: "SUCCESS" },
-    { id: 5, time: "2026-05-27 17:14:35", agent: "OpsManager", action: "CRISIS_APPROVED", detail: "Operasyon Direktörü Hakan Yılmaz tarafından 25 yolcunun otonom kurtarma kararı topluca onaylandı.", level: "SUCCESS" }
+    { id: 5, time: "2026-05-27 17:14:35", agent: "OpsManager", action: "CRISIS_APPROVED", detail: "Operasyon Direktörü Yasin Maden tarafından 25 yolcunun otonom kurtarma kararı topluca onaylandı.", level: "SUCCESS" }
   ]);
 
   return (

@@ -15,7 +15,7 @@ export default function Header() {
       setUser(JSON.parse(savedUser));
     } else {
       // Default fallback session if local storage hasn't been set yet
-      setUser({ name: 'Hakan Yılmaz', role: 'Operations Director', avatar: 'HY' });
+      setUser({ name: 'Yasin Maden', role: 'Operations Director', avatar: 'YM' });
     }
   }, []);
 

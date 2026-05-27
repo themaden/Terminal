@@ -16,10 +16,10 @@ export default function LoginPage() {
     setTimeout(() => {
       // Save authenticated user profile to local storage under new JetNexus key
       const userProfile = {
-        name: email === 'manager@jetnexus.ai' ? 'Hakan Yılmaz' : 'Selin Aksoy',
+        name: email === 'manager@jetnexus.ai' ? 'Yasin Maden' : 'Selin Aksoy',
         email: email,
         role: role,
-        avatar: email === 'manager@jetnexus.ai' ? 'HY' : 'SA'
+        avatar: email === 'manager@jetnexus.ai' ? 'YM' : 'SA'
       };
       localStorage.setItem('jetnexus_user', JSON.stringify(userProfile));
       setIsLoading(false);

@@ -139,7 +139,7 @@ export default function RouteOptimization() {
     if (savedUser) {
       setUser(JSON.parse(savedUser));
     } else {
-      setUser({ name: 'Hakan Yılmaz', role: 'Operations Director', avatar: 'HY' });
+      setUser({ name: 'Yasin Maden', role: 'Operations Director', avatar: 'YM' });
     }
   }, []);
 
