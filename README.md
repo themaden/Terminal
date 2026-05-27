@@ -11,9 +11,9 @@
 [![Next.js](https://img.shields.io/badge/Next.js-15+-000000?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 
-**Multi-Agent AI · MILP Optimization · EU261 Compliance · Real-time Notifications**
+**Multi-Agent AI · MILP Optimizasyonu · EU261 Uyumluluğu · Gerçek Zamanlı İletişim**
 
-*Uçuş iptalleri veya rötar gibi operasyonel aksaklık anlarında devreye giren, saniyeler içinde karar veren ve yolcularla anında iletişim kuran tam kapsamlı bir kriz yönetim platformu.*
+*Kriz anında uçuş operasyonlarını hızlıca stabilize eden, tazminat ve yeniden rezervasyon kararlarını düzenleyici uyumlulukla yöneten bir havacılık yapay zeka platformu.*
 
 </div>
 
@@ -149,9 +149,13 @@ make simulate   # Kriz simülasyonu
 make logs       # Log izle
 ```
 
+## 🤝 Katkıda Bulunma
+
+Bu proje açık kaynaklıdır ve katkılara açıktır. Hata bildirmek, özellik önermek veya geliştirme yapmak için issue açabilir ya da pull request gönderebilirsiniz.
+
 ## 📄 Lisans
 
-MIT License - Detaylar için [LICENSE](LICENSE) dosyasına bakın.
+Bu proje MIT Lisansı altında yayınlanmıştır. Lisans koşullarının tamamı için [LICENSE](LICENSE) dosyasına bakın.
 
 ---
 
