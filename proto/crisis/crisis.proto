@@ -1,0 +1,180 @@
+syntax = "proto3";
+
+package crisis;
+
+option go_package = "github.com/aero-agent/proto/crisis";
+
+import "google/protobuf/timestamp.proto";
+
+// ═══════════════════════════════════════════════════════════════════
+// CrisisService - gRPC service for crisis management
+// ═══════════════════════════════════════════════════════════════════
+
+service CrisisService {
+    // ReportFlightEvent reports a new flight event that may trigger a crisis
+    rpc ReportFlightEvent(FlightEvent) returns (CrisisResponse);
+
+    // GetCrisisStatus returns the current status of a crisis
+    rpc GetCrisisStatus(CrisisStatusRequest) returns (CrisisStatusResponse);
+
+    // StreamDecisions streams real-time decisions for a crisis
+    rpc StreamDecisions(CrisisStatusRequest) returns (stream Decision);
+
+    // ResolveCrisis marks a crisis as resolved
+    rpc ResolveCrisis(ResolveCrisisRequest) returns (CrisisResponse);
+
+    // ListActiveCrises returns all currently active crises
+    rpc ListActiveCrises(ListCrisesRequest) returns (ListCrisesResponse);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Messages
+// ═══════════════════════════════════════════════════════════════════
+
+message FlightEvent {
+    string event_id = 1;
+    EventType event_type = 2;
+    string flight_number = 3;
+    string origin = 4;
+    string destination = 5;
+    google.protobuf.Timestamp scheduled_departure = 6;
+    google.protobuf.Timestamp actual_departure = 7;
+    FlightStatus status = 8;
+    string reason = 9;
+    int32 delay_minutes = 10;
+    string aircraft_type = 11;
+    google.protobuf.Timestamp timestamp = 12;
+}
+
+message CrisisResponse {
+    string crisis_id = 1;
+    CrisisStatus status = 2;
+    string message = 3;
+    int32 affected_passenger_count = 4;
+    google.protobuf.Timestamp created_at = 5;
+}
+
+message Decision {
+    string decision_id = 1;
+    string crisis_id = 2;
+    string passenger_id = 3;
+    string passenger_name = 4;
+    ActionType action = 5;
+    string new_flight_number = 6;
+    double compensation_amount_eur = 7;
+    string hotel_name = 8;
+    DecisionStatus status = 9;
+    double agent_confidence = 10;
+    string agent_reasoning = 11;
+    google.protobuf.Timestamp created_at = 12;
+}
+
+message CrisisStatusRequest {
+    string crisis_id = 1;
+}
+
+message CrisisStatusResponse {
+    string crisis_id = 1;
+    CrisisType crisis_type = 2;
+    string affected_flight_number = 3;
+    string reason = 4;
+    Severity severity = 5;
+    CrisisStatus status = 6;
+    int32 affected_passenger_count = 7;
+    int32 decisions_completed = 8;
+    int32 decisions_pending = 9;
+    google.protobuf.Timestamp triggered_at = 10;
+    google.protobuf.Timestamp resolved_at = 11;
+    repeated Decision decisions = 12;
+}
+
+message ResolveCrisisRequest {
+    string crisis_id = 1;
+    string resolution_notes = 2;
+}
+
+message ListCrisesRequest {
+    CrisisStatus status_filter = 1;
+    int32 limit = 2;
+    int32 offset = 3;
+}
+
+message ListCrisesResponse {
+    repeated CrisisStatusResponse crises = 1;
+    int32 total_count = 2;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Enums
+// ═══════════════════════════════════════════════════════════════════
+
+enum EventType {
+    EVENT_TYPE_UNSPECIFIED = 0;
+    DELAY = 1;
+    CANCELLATION = 2;
+    DIVERSION = 3;
+    GATE_CHANGE = 4;
+    BOARDING = 5;
+    DEPARTURE = 6;
+    ARRIVAL = 7;
+}
+
+enum FlightStatus {
+    FLIGHT_STATUS_UNSPECIFIED = 0;
+    ON_TIME = 1;
+    DELAYED = 2;
+    CANCELLED = 3;
+    DIVERTED = 4;
+    FLIGHT_BOARDING = 5;
+    DEPARTED = 6;
+    ARRIVED = 7;
+}
+
+enum CrisisType {
+    CRISIS_TYPE_UNSPECIFIED = 0;
+    CRISIS_CANCELLATION = 1;
+    CRISIS_DELAY = 2;
+    CRISIS_DIVERSION = 3;
+    CRISIS_OVERBOOKING = 4;
+    CRISIS_TECHNICAL = 5;
+    CRISIS_WEATHER = 6;
+    CRISIS_STRIKE = 7;
+    CRISIS_SECURITY = 8;
+}
+
+enum CrisisStatus {
+    CRISIS_STATUS_UNSPECIFIED = 0;
+    ACTIVE = 1;
+    PROCESSING = 2;
+    RESOLVED = 3;
+    ESCALATED = 4;
+}
+
+enum Severity {
+    SEVERITY_UNSPECIFIED = 0;
+    LOW = 1;
+    MEDIUM = 2;
+    HIGH = 3;
+    CRITICAL = 4;
+}
+
+enum ActionType {
+    ACTION_TYPE_UNSPECIFIED = 0;
+    REBOOK = 1;
+    REFUND = 2;
+    COMPENSATE = 3;
+    HOTEL = 4;
+    MEAL_VOUCHER = 5;
+    TRANSPORT = 6;
+    UPGRADE = 7;
+    NO_ACTION = 8;
+}
+
+enum DecisionStatus {
+    DECISION_STATUS_UNSPECIFIED = 0;
+    PENDING = 1;
+    APPROVED = 2;
+    EXECUTED = 3;
+    REJECTED = 4;
+    FAILED = 5;
+}

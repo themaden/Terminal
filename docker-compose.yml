@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────
-# Aero-Agent: Docker Compose (Development)
+# JetNexus AI: Docker Compose (Development)
 # ─────────────────────────────────────────────
 # Usage: make dev  OR  docker compose up -d
 # ─────────────────────────────────────────────
@@ -10,29 +10,29 @@ services:
   # ── PostgreSQL ─────────────────────────────
   postgres:
     image: postgres:16-alpine
-    container_name: aero-postgres
+    container_name: jetnexus-postgres
     restart: unless-stopped
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-aeroagent}
-      POSTGRES_USER: ${POSTGRES_USER:-aeroagent}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aeroagent_secret_2024}
+      POSTGRES_DB: ${POSTGRES_DB:-jetnexus}
+      POSTGRES_USER: ${POSTGRES_USER:-jetnexus}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jetnexus_secret_2026}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infra/docker/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aeroagent}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-jetnexus}"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - aero-network
+      - jetnexus-network
 
   # ── Redis ──────────────────────────────────
   redis:
     image: redis:7-alpine
-    container_name: aero-redis
+    container_name: jetnexus-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
@@ -45,12 +45,12 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - aero-network
+      - jetnexus-network
 
   # ── Zookeeper (Kafka dependency) ───────────
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.0
-    container_name: aero-zookeeper
+    container_name: jetnexus-zookeeper
     restart: unless-stopped
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
@@ -58,12 +58,12 @@ services:
     volumes:
       - zookeeper_data:/var/lib/zookeeper/data
     networks:
-      - aero-network
+      - jetnexus-network
 
   # ── Apache Kafka ───────────────────────────
   kafka:
     image: confluentinc/cp-kafka:7.6.0
-    container_name: aero-kafka
+    container_name: jetnexus-kafka
     restart: unless-stopped
     depends_on:
       zookeeper:
@@ -86,19 +86,19 @@ services:
       timeout: 10s
       retries: 10
     networks:
-      - aero-network
+      - jetnexus-network
 
   # ── Decision Engine (Python/FastAPI) ───────
   decision-engine:
     build:
       context: ./services/decision-engine
       dockerfile: Dockerfile
-    container_name: aero-decision-engine
+    container_name: jetnexus-decision-engine
     restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-aeroagent}:${POSTGRES_PASSWORD:-aeroagent_secret_2024}@postgres:5432/${POSTGRES_DB:-aeroagent}
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-jetnexus}:${POSTGRES_PASSWORD:-jetnexus_secret_2026}@postgres:5432/${POSTGRES_DB:-jetnexus}
       - REDIS_URL=redis://redis:6379/0
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
@@ -114,14 +114,14 @@ services:
     volumes:
       - ./services/decision-engine:/app
     networks:
-      - aero-network
+      - jetnexus-network
 
   # ── Notification Service (Python) ──────────
   notification-service:
     build:
       context: ./services/notification-service
       dockerfile: Dockerfile
-    container_name: aero-notification
+    container_name: jetnexus-notification
     restart: unless-stopped
     ports:
       - "8001:8001"
@@ -137,20 +137,20 @@ services:
     volumes:
       - ./services/notification-service:/app
     networks:
-      - aero-network
+      - jetnexus-network
 
   # ── Ingestion Service (Go) ─────────────────
   ingestion-service:
     build:
       context: ./services/ingestion-service
       dockerfile: Dockerfile
-    container_name: aero-ingestion
+    container_name: jetnexus-ingestion
     restart: unless-stopped
     ports:
       - "8002:8002"
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
-      - API_KEY=${API_KEY:-aero-agent-api-key-dev}
+      - API_KEY=${API_KEY:-jetnexus-api-key-dev}
       - PORT=8002
     depends_on:
       kafka:
@@ -158,14 +158,14 @@ services:
     volumes:
       - ./services/ingestion-service:/app
     networks:
-      - aero-network
+      - jetnexus-network
 
   # ── Frontend (Next.js) ─────────────────────
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: aero-frontend
+    container_name: jetnexus-frontend
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -178,7 +178,7 @@ services:
       - ./frontend/src:/app/src
       - ./frontend/public:/app/public
     networks:
-      - aero-network
+      - jetnexus-network
 
 # ── Volumes ──────────────────────────────────
 volumes:
@@ -193,6 +193,6 @@ volumes:
 
 # ── Networks ─────────────────────────────────
 networks:
-  aero-network:
+  jetnexus-network:
     driver: bridge
-    name: aero-network
+    name: jetnexus-network

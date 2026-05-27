@@ -1,0 +1,30 @@
+Dear {{passenger_name}},
+
+We have arranged a new booking for your flight {{flight_number}} ({{origin}} → {{destination}}).
+
+Original Flight: {{original_flight}}
+New Flight: {{new_flight_number}}
+New Departure: {{new_departure}}
+New Arrival: {{new_arrival}}
+
+Reason for Change: {{reason}}
+
+Compensation Details:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Compensation Amount: {{compensation_amount}} EUR
+• Payment Method: Refund to original payment method
+
+{{hotel_info}}
+
+Additional Services:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{{additional_services}}
+
+Your new boarding pass has been sent to your email address.
+
+For assistance:
+📞 +90 212 444 0 999
+📧 support@aero-agent.com
+
+We wish you a pleasant journey.
+Aero-Agent Airlines

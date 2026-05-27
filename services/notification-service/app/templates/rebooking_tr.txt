@@ -1,0 +1,30 @@
+Sayın {{passenger_name}},
+
+{{flight_number}} numaralı uçuşunuz ({{origin}} → {{destination}}) için yeni bir rezervasyon yapılmıştır.
+
+Orijinal Uçuş: {{original_flight}}
+Yeni Uçuş: {{new_flight_number}}
+Yeni Kalkış: {{new_departure}}
+Yeni Varış: {{new_arrival}}
+
+Değişiklik Nedeni: {{reason}}
+
+Tazminat Bilgisi:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Tazminat Tutarı: {{compensation_amount}} EUR
+• Ödeme Yöntemi: Orijinal ödeme yöntemine iade
+
+{{hotel_info}}
+
+Ek Hizmetler:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{{additional_services}}
+
+Yeni biniş kartınız e-posta adresinize gönderilmiştir.
+
+Sorularınız için:
+📞 +90 212 444 0 999
+📧 destek@aero-agent.com
+
+İyi yolculuklar dileriz.
+Aero-Agent Havayolları

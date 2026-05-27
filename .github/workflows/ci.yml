@@ -1,0 +1,226 @@
+# ═══════════════════════════════════════════════════════════════════
+# Aero-Agent CI/CD Pipeline
+# ═══════════════════════════════════════════════════════════════════
+
+name: Aero-Agent CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.12"
+  GO_VERSION: "1.22"
+  NODE_VERSION: "20"
+
+jobs:
+  # ── Python Linting ────────────────────────────
+  lint-python:
+    name: Lint Python
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff mypy
+          pip install -r services/decision-engine/requirements.txt
+          pip install -r services/notification-service/requirements.txt
+
+      - name: Run Ruff linter
+        run: |
+          ruff check services/decision-engine/ services/notification-service/ scripts/
+
+      - name: Run Ruff formatter check
+        run: |
+          ruff format --check services/decision-engine/ services/notification-service/ scripts/
+
+  # ── Python Tests ──────────────────────────────
+  test-python:
+    name: Test Python
+    runs-on: ubuntu-latest
+    needs: lint-python
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: aeroagent_test
+          POSTGRES_USER: aeroagent
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U aeroagent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install notification-service dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r services/notification-service/requirements.txt
+          pip install pytest pytest-asyncio pytest-cov
+
+      - name: Run notification-service tests
+        working-directory: services/notification-service
+        run: |
+          python -m pytest tests/ -v --tb=short --cov=app --cov-report=term-missing
+        env:
+          DATABASE_URL: postgresql://aeroagent:test_password@localhost:5432/aeroagent_test
+
+      - name: Install decision-engine dependencies
+        run: |
+          if [ -f services/decision-engine/requirements.txt ]; then
+            pip install -r services/decision-engine/requirements.txt
+          fi
+
+      - name: Run decision-engine tests
+        working-directory: services/decision-engine
+        run: |
+          if [ -d tests ] && [ "$(ls -A tests/)" ]; then
+            python -m pytest tests/ -v --tb=short
+          else
+            echo "No tests found, skipping"
+          fi
+        env:
+          DATABASE_URL: postgresql://aeroagent:test_password@localhost:5432/aeroagent_test
+
+  # ── Go Linting & Tests ───────────────────────
+  lint-go:
+    name: Lint & Test Go
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: services/ingestion-service/go.sum
+
+      - name: Download dependencies
+        working-directory: services/ingestion-service
+        run: go mod download
+
+      - name: Run go vet
+        working-directory: services/ingestion-service
+        run: go vet ./...
+
+      - name: Install golangci-lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: latest
+          working-directory: services/ingestion-service
+
+      - name: Run tests
+        working-directory: services/ingestion-service
+        run: go test -v -race -coverprofile=coverage.out ./...
+
+      - name: Build binary
+        working-directory: services/ingestion-service
+        run: |
+          CGO_ENABLED=0 go build -o ingestion-service ./cmd/server
+
+  # ── Frontend Tests ───────────────────────────
+  test-frontend:
+    name: Test Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Run linter
+        working-directory: frontend
+        run: |
+          if npx --no -- eslint --version 2>/dev/null; then
+            npx eslint src/ --ext .ts,.tsx --max-warnings 0
+          else
+            echo "ESLint not configured, skipping"
+          fi
+
+      - name: Run tests
+        working-directory: frontend
+        run: |
+          if [ -f jest.config.js ] || [ -f jest.config.ts ] || grep -q '"test"' package.json; then
+            npm test -- --watchAll=false --passWithNoTests
+          else
+            echo "No test runner configured, skipping"
+          fi
+
+      - name: Build
+        working-directory: frontend
+        run: |
+          if grep -q '"build"' package.json; then
+            npm run build
+          else
+            echo "No build script found, skipping"
+          fi
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+
+  # ── Docker Build Check ───────────────────────
+  docker-build:
+    name: Docker Build Check
+    runs-on: ubuntu-latest
+    needs: [test-python, lint-go, test-frontend]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build ingestion-service
+        uses: docker/build-push-action@v5
+        with:
+          context: services/ingestion-service
+          push: false
+          tags: aero-agent/ingestion-service:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build notification-service
+        uses: docker/build-push-action@v5
+        with:
+          context: services/notification-service
+          push: false
+          tags: aero-agent/notification-service:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

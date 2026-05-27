@@ -1,0 +1,26 @@
+Sayın {{passenger_name}},
+
+{{flight_number}} numaralı uçuşunuz ({{origin}} → {{destination}}) iptal edilmiştir.
+
+İptal Nedeni: {{reason}}
+Planlanan Kalkış: {{scheduled_departure}}
+
+AB 261/2004 Yönetmeliği kapsamındaki haklarınız:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Tam bilet iadesi VEYA alternatif uçuş hakkı
+• {{compensation_amount}} EUR tazminat ({{distance_info}})
+• Bekleme süresinde yemek ve içecek
+• Gerekli durumlarda konaklama
+
+Sizin İçin Aldığımız Karar:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{{decision_details}}
+
+{{rebooking_info}}
+
+Sorularınız için 7/24 müşteri hizmetlerimizi arayabilirsiniz:
+📞 +90 212 444 0 999
+📧 destek@aero-agent.com
+
+İyi yolculuklar dileriz.
+Aero-Agent Havayolları

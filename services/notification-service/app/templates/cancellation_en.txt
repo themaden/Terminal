@@ -1,0 +1,26 @@
+Dear {{passenger_name}},
+
+We regret to inform you that your flight {{flight_number}} ({{origin}} → {{destination}}) has been cancelled.
+
+Cancellation Reason: {{reason}}
+Scheduled Departure: {{scheduled_departure}}
+
+Your rights under EU Regulation 261/2004:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Full ticket refund OR alternative flight
+• {{compensation_amount}} EUR compensation ({{distance_info}})
+• Meals and refreshments during waiting period
+• Hotel accommodation if required
+
+Our Decision for You:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{{decision_details}}
+
+{{rebooking_info}}
+
+For assistance, contact us 24/7:
+📞 +90 212 444 0 999
+📧 support@aero-agent.com
+
+We wish you a pleasant journey.
+Aero-Agent Airlines

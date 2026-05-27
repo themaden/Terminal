@@ -1,6 +1,4 @@
-<![CDATA[<div align="center">
-
-# 🛫 Aero-Agent
+# ✈️ JetNexus AI
 
 ### Otonom Havacılık Kriz Yönetim Sistemi
 
@@ -9,77 +7,96 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Next.js](https://img.shields.io/badge/Next.js-15+-000000?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
-[![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
+[![License](https://img.shields.io/badge/Lisans-MIT-f59e0b?style=for-the-badge)](LICENSE)
 
-**Multi-Agent AI · MILP Optimizasyonu · EU261 Uyumluluğu · Gerçek Zamanlı İletişim**
-
-*Kriz anında uçuş operasyonlarını hızlıca stabilize eden, tazminat ve yeniden rezervasyon kararlarını düzenleyici uyumlulukla yöneten bir havacılık yapay zeka platformu.*
-
-</div>
+> **Çok Ajanlı AI · MILP Optimizasyonu · EU261 Uyumluluğu · Gerçek Zamanlı İletişim**
+>
+> Uçuş krizlerini saniyeler içinde çözen, yolcu haklarını otomatik koruyan otonom havacılık zekâ platformu.
 
 ---
 
-## 🏗️ Mimari
+## İçindekiler
+
+- [Özellikler](#-özellikler)
+- [Sistem Mimarisi](#-sistem-mimarisi)
+- [Hızlı Başlangıç](#-hızlı-başlangıç)
+- [Bağımsız Servis Başlatma](#-bağımsız-servis-başlatma)
+- [Proje Yapısı](#-proje-yapısı)
+- [AI Agent Mimarisi](#-ai-agent-mimarisi)
+- [EU261 Tazminat Tablosu](#-eu261-tazminat-tablosu)
+- [Geliştirme Komutları](#-geliştirme-komutları)
+- [Lisans](#-lisans)
+
+---
+
+## ✨ Özellikler
+
+| Özellik | Açıklama |
+|---|---|
+| 🤖 **Çok Ajanlı Karar Motoru** | CrewAI tabanlı ajan orkestrasyonu ile saniyeler içinde aksiyon |
+| 📊 **MILP Optimizasyonu** | PuLP/CBC ile koltuk ve rezervasyon maliyeti minimizasyonu |
+| ⚖️ **EU261 Uyumluluğu** | Mesafe ve gecikme sınıfına göre otomatik tazminat hesaplama |
+| 📡 **Gerçek Zamanlı Bildirim** | SMS/WhatsApp üzerinden Türkçe/İngilizce yolcu iletişimi |
+| 🖥️ **Komuta Merkezi Dashboard** | Next.js 15 tabanlı dark-mode HUD arayüzü |
+| 🔒 **Güvenlik Katmanı** | AES-256 şifreleme, PII maskeleme, prompt injection koruması |
+| 📈 **Sağlık İzleme** | Prometheus + Grafana ile canlı servis metrikleri |
+
+---
+
+## 🏗️ Sistem Mimarisi
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    ☁️  External Systems                         │
-│     Amadeus/Sabre API    Twilio API     OpenAI GPT-4o          │
-└──────┬──────────────────────┬─────────────────┬────────────────┘
-       │                      │                 │
-┌──────▼──────┐         ┌─────▼─────┐    ┌─────▼─────┐
-│  📡 Go      │         │  📱 Notif  │    │  🧠 AI    │
-│  Ingestion  │────────▶│  Service   │    │  Agents   │
-│  Service    │  Kafka   │  (Python)  │    │  (CrewAI) │
-└──────┬──────┘         └───────────┘    └─────┬─────┘
-       │                                       │
-       │         ┌────────────────────┐        │
-       └────────▶│  🧠 Decision       │◀───────┘
-                 │  Engine (FastAPI)   │
-                 │  ┌──────────────┐  │
-                 │  │ MILP Solver  │  │
-                 │  │ (PuLP/CBC)   │  │
-                 │  └──────────────┘  │
-                 │  ┌──────────────┐  │
-                 │  │ EU261 Engine │  │
-                 │  └──────────────┘  │
-                 └─────────┬──────────┘
-                           │
-              ┌────────────┼────────────┐
-              │            │            │
-        ┌─────▼─────┐ ┌───▼───┐ ┌─────▼─────┐
-        │ PostgreSQL │ │ Redis │ │  Kafka    │
-        │    (Core)  │ │(Cache)│ │  (Queue)  │
-        └───────────┘ └───────┘ └───────────┘
-                           │
-                    ┌──────▼──────┐
-                    │  🎨 Next.js  │
-                    │  Dashboard   │
-                    │  (TypeScript) │
-                    └──────────────┘
+                   ┌──────────────────────────────┐
+                   │         Dış Sistemler         │
+                   │  Amadeus · Sabre · OpenAI     │
+                   └───────────┬──────────────────┘
+                               │
+         ┌─────────────────────┼────────────────────┐
+         ▼                     ▼                    ▼
+┌─────────────────┐  ┌──────────────────┐  ┌──────────────────┐
+│  Ingestion      │  │  Decision        │  │  Notification    │
+│  Service (Go)   │  │  Engine (FastAPI) │  │  Service (Python)│
+│  Webhook · API  │  │  MILP · EU261    │  │  SMS · WhatsApp  │
+└────────┬────────┘  └────────┬─────────┘  └──────────────────┘
+         │                    │
+         └──────────┬─────────┘
+                    ▼
+         ┌─────────────────────┐
+         │     Apache Kafka    │
+         └──────┬──────────────┘
+                │
+     ┌──────────┼──────────┐
+     ▼          ▼          ▼
+┌─────────┐ ┌───────┐ ┌──────────┐
+│Postgres │ │ Redis │ │ Next.js  │
+│  (Core) │ │(Cache)│ │  Panel   │
+└─────────┘ └───────┘ └──────────┘
 ```
+
+---
 
 ## 🚀 Hızlı Başlangıç
 
 ### Gereksinimler
-- Python 3.12+
-- Node.js 20+
-- Go 1.22+
-- Docker & Docker Compose
-- OpenAI API Key (veya Ollama)
+
+- 🐍 Python 3.12+
+- 🟢 Node.js 20+
+- 🐹 Go 1.22+
+- 🐳 Docker & Docker Compose
+- 🔑 OpenAI API Key *(veya yerel Ollama)*
 
 ### Kurulum
 
 ```bash
-# 1. Repo'yu klonla
-git clone https://github.com/your-org/aero-agent.git
-cd aero-agent
+# 1. Repoyu klonla
+git clone https://github.com/themaden/Terminal.git
+cd jetnexus-ai
 
 # 2. Ortam değişkenlerini ayarla
 cp .env.example .env
-# .env dosyasını düzenle (API anahtarları vb.)
+# .env dosyasını düzenle: OPENAI_API_KEY, DB şifreleri vb.
 
-# 3. Tüm servisleri başlat
+# 3. Tüm servisleri Docker ile başlat
 make dev
 
 # 4. Örnek veri yükle
@@ -89,77 +106,128 @@ make seed
 make simulate
 ```
 
-### Bağımsız Servisler
+> 🌐 **Dashboard:** `http://localhost:3000`
+>
+> 📡 **API Docs:** `http://localhost:8000/docs`
+
+---
+
+## 🔧 Bağımsız Servis Başlatma
+
+**Decision Engine (FastAPI)**
 
 ```bash
-# Sadece Decision Engine
 cd services/decision-engine
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
+```
 
-# Sadece Frontend
+**Frontend Dashboard (Next.js)**
+
+```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-## 📂 Proje Yapısı
-
-```
-aero-agent/
-├── services/
-│   ├── decision-engine/     # 🧠 Python/FastAPI - Ana Beyin
-│   ├── ingestion-service/   # 📡 Go - Webhook Alıcı
-│   └── notification-service/# 📱 Python - SMS/WhatsApp
-├── frontend/                # 🎨 Next.js Dashboard
-├── infra/                   # 🐳 Docker, K8s, Terraform
-├── scripts/                 # 🔧 Seed data, Simülasyon
-├── docs/                    # 📚 Dokümantasyon
-├── monitoring/              # 📊 Prometheus, Grafana
-└── proto/                   # 📡 gRPC tanımları
-```
-
-## 🤖 AI Agent Mimarisi
-
-| Agent | Rol | Sorumluluk |
-|-------|-----|------------|
-| **Coordinator** | 🎯 Orkestratör | Tüm ajanları koordine eder, iş akışını yönetir |
-| **Rebooking** | ✈️ Yeniden Rezervasyon | MILP sonuçlarına göre yolcuları yeni uçuşlara atar |
-| **Compensation** | 💰 Tazminat | EU261 kurallarına göre tazminat hesaplar |
-| **Communication** | 💬 İletişim | Yolculara gönderilecek mesajları oluşturur |
-| **Compliance** | ⚖️ Uyumluluk | Tüm kararların regülasyona uygunluğunu denetler |
-
-## ⚖️ EU261 Tazminat Tablosu
-
-| Mesafe | Tazminat | Gecikme Şartı |
-|--------|----------|---------------|
-| < 1.500 km | €250 | ≥ 3 saat |
-| 1.500 - 3.500 km | €400 | ≥ 3 saat |
-| > 3.500 km | €600 | ≥ 4 saat |
-| > 3.500 km | €300 | 3-4 saat (%50 indirim) |
-
-## 🔧 Geliştirme Komutları
+**Ingestion Service (Go)**
 
 ```bash
-make dev        # Docker Compose ile başlat
-make down       # Durdur
-make test       # Tüm testleri çalıştır
-make seed       # Örnek veri yükle
-make simulate   # Kriz simülasyonu
-make logs       # Log izle
+cd services/ingestion-service
+go mod download
+go run main.go
 ```
-
-## 🤝 Katkıda Bulunma
-
-Bu proje açık kaynaklıdır ve katkılara açıktır. Hata bildirmek, özellik önermek veya geliştirme yapmak için issue açabilir ya da pull request gönderebilirsiniz.
-
-## 📄 Lisans
-
-Bu proje MIT Lisansı altında yayınlanmıştır. Lisans koşullarının tamamı için [LICENSE](LICENSE) dosyasına bakın.
 
 ---
 
-<div align="center">
-  <sub>Built with ❤️ for Aviation Safety</sub>
-</div>
-]]>
+## 📁 Proje Yapısı
+
+```
+jetnexus-ai/
+├── services/
+│   ├── decision-engine/        # Python/FastAPI — Ana Karar Motoru
+│   │   ├── app/agents/         # AI Agent koordinasyon katmanı
+│   │   ├── app/optimization/   # MILP solver (PuLP/CBC)
+│   │   ├── app/regulations/    # EU261 hesaplama motoru
+│   │   └── app/guardrails/     # Güvenlik ve PII filtreleri
+│   ├── ingestion-service/      # Go — Webhook & Dış API Alıcısı
+│   └── notification-service/   # Python — SMS/WhatsApp Bildirim
+├── frontend/                   # Next.js 15 — HUD Dashboard
+│   └── src/
+│       ├── app/                # App Router sayfaları
+│       └── components/         # UI bileşenleri
+├── infra/                      # Docker, K8s, Terraform
+├── scripts/                    # Seed data & otomasyon
+├── monitoring/                 # Prometheus & Grafana
+├── proto/                      # gRPC tanımları
+└── docs/                       # Mimari dokümantasyon
+```
+
+---
+
+## 🤖 AI Agent Mimarisi
+
+```
+         ┌──────────────────────────────┐
+         │       CoordinatorAgent        │
+         │  Tüm ajanları orkestre eder   │
+         └────┬──────────┬──────────────┘
+              │          │
+   ┌──────────┘          └──────────────────────┐
+   ▼                     ▼                      ▼
+┌───────────┐    ┌───────────────┐    ┌──────────────────┐
+│ Rebooking │    │ Compensation  │    │  Communication   │
+│  Agent    │    │    Agent      │    │     Agent        │
+│ MILP ile  │    │ EU261 hesapla │    │ TR/EN bildirim   │
+│ yeni uçuş │    │               │    │ mesajı oluştur   │
+└───────────┘    └───────────────┘    └──────────────────┘
+                                      ┌──────────────────┐
+                                      │ Compliance Agent │
+                                      │ Regülasyon denet │
+                                      └──────────────────┘
+```
+
+| Agent | Sorumluluk |
+|---|---|
+| 🎯 **Coordinator** | Kriz akışını yönetir, ajan sırasını belirler |
+| ✈️ **Rebooking** | MILP sonuçlarına göre en uygun uçuşa atar |
+| 💰 **Compensation** | EU261 kurallarına göre tazminat hesaplar |
+| 📢 **Communication** | TR/EN yolcu bildirim mesajları oluşturur |
+| ⚖️ **Compliance** | Tüm kararların yasal uyumluluğunu denetler |
+
+---
+
+## ⚖️ EU261 Tazminat Tablosu
+
+| Mesafe | Tazminat | Gecikme Koşulu |
+|:---|:---:|:---|
+| **< 1.500 km** | **€250** | ≥ 3 saat veya iptal |
+| **1.500 – 3.500 km** | **€400** | ≥ 3 saat veya iptal |
+| **> 3.500 km** | **€600** | ≥ 4 saat veya iptal |
+| **> 3.500 km** | **€300** | 3–4 saat arası (%50 indirim) |
+
+> AB üyesi ülkeden kalkan tüm uçuşlar EU261 kapsamındadır.
+
+---
+
+## ⌨️ Geliştirme Komutları
+
+```bash
+make dev          # Tüm servisleri başlat
+make down         # Servisleri durdur
+make test         # Test suite çalıştır
+make seed         # Veritabanına örnek veri yükle
+make simulate     # Kriz simülasyonu tetikle
+make logs         # Tüm servis loglarını takip et
+make clean        # Volume ve container temizliği
+```
+
+---
+
+## 📄 Lisans
+
+Bu proje **MIT Lisansı** altında yayınlanmıştır. Detaylar için [LICENSE](LICENSE) dosyasına bakın.
+
+---
+
+*Built with ❤️ for Aviation Safety & Passenger Rights*
