@@ -20,6 +20,7 @@
 - [Özellikler](#-özellikler)
 - [Sistem Mimarisi](#-sistem-mimarisi)
 - [Hızlı Başlangıç](#-hızlı-başlangıç)
+- [🔑 .env Kurulum Rehberi](#-env-kurulum-rehberi)
 - [Bağımsız Servis Başlatma](#-bağımsız-servis-başlatma)
 - [Proje Yapısı](#-proje-yapısı)
 - [AI Agent Mimarisi](#-ai-agent-mimarisi)
@@ -112,7 +113,101 @@ make simulate
 
 ---
 
+## 🔑 .env Kurulum Rehberi
+
+> Projeyi çalıştırmadan önce proje klasöründe bir `.env` dosyası oluşturman gerekiyor.
+> Bu dosya **asla GitHub'a yüklenmez** — tamamen gizlidir.
+
+### Adım 1 — .env Dosyasını Oluştur
+
+```bash
+# Proje klasöründe bu komutu çalıştır:
+copy NUL .env       # Windows
+# veya
+touch .env          # Mac/Linux
+```
+
+### Adım 2 — Aşağıdaki Değerleri Doldur
+
+`.env` dosyasını bir metin editörüyle aç ve şu içeriği yapıştır:
+
+```env
+# ─────────────────────────────────────────────────
+# JetNexus AI — .env (Bu dosyayı GitHub'a yükleme!)
+# ─────────────────────────────────────────────────
+
+# ── VERİTABANI (PostgreSQL) ───────────────────────
+POSTGRES_DB=jetnexus
+POSTGRES_USER=jetnexus
+POSTGRES_PASSWORD=buraya_guclu_bir_sifre_yaz
+DATABASE_URL=postgresql+asyncpg://jetnexus:buraya_guclu_bir_sifre_yaz@localhost:5432/jetnexus
+
+# ── REDIS ────────────────────────────────────────
+REDIS_URL=redis://localhost:6379/0
+
+# ── KAFKA ────────────────────────────────────────
+KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+
+# ── OPENAI API (Zorunlu - AI kararları için) ─────
+# 👉 https://platform.openai.com/api-keys adresinden al
+OPENAI_API_KEY=sk-proj-...buraya_kendi_openai_keyini_yaz...
+LLM_MODEL=gpt-4o
+
+# ── TWILIO SMS/WhatsApp (İsteğe bağlı) ───────────
+# 👉 https://console.twilio.com adresinden al
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_FROM_NUMBER=+1XXXXXXXXXX
+TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
+
+# ── GÜVENLİK ANAHTARLARI (Zorunlu) ──────────────
+# Aşağıdaki komutlarla üret:
+# python -c "import secrets; print(secrets.token_hex(32))"
+SECRET_KEY=buraya_uret
+# python -c "import secrets; print(secrets.token_hex(16))"
+AES_ENCRYPTION_KEY=buraya_uret_16_byte_hex
+# python -c "import secrets; print(secrets.token_urlsafe(32))"
+API_KEY=buraya_uret
+
+# ── UYGULAMA ─────────────────────────────────────
+APP_ENV=development
+APP_DEBUG=true
+LOG_LEVEL=INFO
+```
+
+### Hangi Değerler Zorunlu?
+
+| Değişken | Zorunlu mu? | Nereden Alınır? | Açıklama |
+|---|:---:|---|---|
+| `POSTGRES_PASSWORD` | ✅ **Evet** | Kendin belirle | En az 12 karakter, güçlü bir şifre |
+| `OPENAI_API_KEY` | ✅ **Evet** | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) | AI karar motoru için gerekli |
+| `SECRET_KEY` | ✅ **Evet** | `python -c "import secrets; print(secrets.token_hex(32))"` | JWT ve session güvenliği |
+| `AES_ENCRYPTION_KEY` | ✅ **Evet** | `python -c "import secrets; print(secrets.token_hex(16))"` | Yolcu verisi şifreleme |
+| `API_KEY` | ✅ **Evet** | `python -c "import secrets; print(secrets.token_urlsafe(32))"` | Servisler arası kimlik doğrulama |
+| `TWILIO_ACCOUNT_SID` | ⚙️ İsteğe bağlı | [console.twilio.com](https://console.twilio.com) | SMS/WhatsApp bildirimi için |
+| `TWILIO_AUTH_TOKEN` | ⚙️ İsteğe bağlı | [console.twilio.com](https://console.twilio.com) | SMS/WhatsApp bildirimi için |
+| `REDIS_URL` | ✅ **Evet** | Docker otomatik başlatır | Cache servisi |
+| `KAFKA_BOOTSTRAP_SERVERS` | ✅ **Evet** | Docker otomatik başlatır | Mesaj kuyruğu |
+
+### Güvenlik Anahtarlarını Hızlıca Üret
+
+```bash
+# SECRET_KEY için:
+python -c "import secrets; print(secrets.token_hex(32))"
+
+# AES_ENCRYPTION_KEY için:
+python -c "import secrets; print(secrets.token_hex(16))"
+
+# API_KEY için:
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+> ⚠️ **Önemli:** `.env` dosyasını **hiçbir zaman** GitHub, Discord, Slack veya başka bir yere paylaşma!
+
+---
+
 ## 🔧 Bağımsız Servis Başlatma
+
 
 **Decision Engine (FastAPI)**
 
