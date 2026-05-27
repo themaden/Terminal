@@ -135,7 +135,7 @@ export default function RouteOptimization() {
 
   // Fetch logged user
   useEffect(() => {
-    const savedUser = localStorage.getItem('aerosys_user');
+    const savedUser = localStorage.getItem('aeronexus_user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
     } else {
@@ -144,7 +144,7 @@ export default function RouteOptimization() {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('aerosys_user');
+    localStorage.removeItem('aeronexus_user');
     window.location.href = '/dashboard';
   };
 
@@ -205,7 +205,7 @@ export default function RouteOptimization() {
             <span className="material-symbols-outlined text-primary-container group-hover:scale-110 transition-transform duration-300" style={{ fontVariationSettings: "'FILL' 1" }}>
               flight_takeoff
             </span>
-            <span className="tracking-tight">AeroSys Precision</span>
+            <span className="tracking-tight">AeroNexus AI</span>
           </Link>
           
           <nav className="hidden md:flex gap-6">

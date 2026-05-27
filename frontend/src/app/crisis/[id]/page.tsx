@@ -92,7 +92,7 @@ export default function CrisisDetailsPage() {
     setDecisions(prev => 
       prev.map(d => ({ ...d, status: 'APPROVED' }))
     );
-    alert("AeroSys AI: Kriz altındaki tüm yolcu aksiyonları topluca onaylandı ve Twilio kuyruğuna aktarıldı!");
+    alert("AeroNexus AI: Kriz altındaki tüm yolcu aksiyonları topluca onaylandı ve Twilio kuyruğuna aktarıldı!");
   };
 
   return (

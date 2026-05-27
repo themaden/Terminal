@@ -61,7 +61,7 @@ export default function DashboardPage() {
   };
 
   const addToastAction = (msg: string) => {
-    alert(`AeroSys HUD: ${msg}`);
+    alert(`AeroNexus HUD: ${msg}`);
   };
 
   return (
@@ -71,7 +71,7 @@ export default function DashboardPage() {
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
         <div className="lg:col-span-7 flex flex-col gap-6">
           <h1 className="text-4xl md:text-5xl font-display font-bold leading-tight">
-            AeroSys <span className="text-primary-container text-shadow-glow">AI Intelligence</span> Hub
+            AeroNexus <span className="text-primary-container text-shadow-glow">AI Intelligence</span> Hub
           </h1>
           <p className="text-lg font-body-lg text-surface-bright/70 max-w-2xl leading-relaxed">
             Gelişmiş sinir ağları ve matematiksel optimizasyon (MILP) motoru ile uçuş operasyonlarında anlık kriz takibi ve operasyonel maliyet yönetimi kontrol merkezi.

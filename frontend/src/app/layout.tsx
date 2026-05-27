@@ -17,7 +17,7 @@ export default function RootLayout({
 
   useEffect(() => {
     // Check if user is authenticated in localStorage
-    const savedUser = localStorage.getItem('aerosys_user');
+    const savedUser = localStorage.getItem('aeronexus_user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
     }
@@ -27,12 +27,12 @@ export default function RootLayout({
   if (isChecking) {
     return (
       <html lang="tr">
-        <body className="bg-surface text-on-surface font-sans antialiased flow-bg min-h-screen flex items-center justify-center">
+        <body className="bg-[#001229] text-white font-sans antialiased flow-bg min-h-screen flex items-center justify-center">
           <div className="flex flex-col items-center gap-4 text-center">
-            <span className="material-symbols-outlined text-primary text-4xl animate-spin">
+            <span className="material-symbols-outlined text-primary-container text-4xl animate-spin">
               autorenew
             </span>
-            <p className="text-label-sm font-bold tracking-widest text-on-surface-variant uppercase">AeroSys Sync...</p>
+            <p className="text-label-sm font-bold tracking-widest text-primary-fixed uppercase">AeroNexus Sync...</p>
           </div>
         </body>
       </html>
@@ -42,14 +42,14 @@ export default function RootLayout({
   // Auth Gate: If no user is logged in, force render the LoginPage directly
   if (!user) {
     return (
-      <html lang="tr" className="light">
+      <html lang="tr" className="dark">
         <head>
-          <title>AeroSys AI Intelligence Hub - Login</title>
+          <title>AeroNexus AI Intelligence Hub - Login</title>
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
           <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;700&family=Inter:wght@300;400;500;700&display=swap" rel="stylesheet" />
           <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
         </head>
-        <body className="bg-surface text-on-surface font-sans antialiased flow-bg">
+        <body className="bg-[#001229] text-white font-sans antialiased flow-bg">
           <LoginPage />
         </body>
       </html>
@@ -61,7 +61,7 @@ export default function RootLayout({
   return (
     <html lang="tr" className="dark">
       <head>
-        <title>{isOptimizationPage ? 'AeroSys Precision - Route Optimization' : 'AeroSys AI Intelligence Hub'}</title>
+        <title>{isOptimizationPage ? 'AeroNexus AI - Route Optimization' : 'AeroNexus AI Intelligence Hub'}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
