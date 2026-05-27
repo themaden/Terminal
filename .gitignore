@@ -35,9 +35,9 @@ yarn-error.log*
 *.dll
 
 # ── Environment & Secrets ───────────────────────
-# ⚠️  NEVER commit real .env files or templates with example values
+# ⚠️  NEVER commit the real .env file!
+# ✅  .env.example is safe to commit (no real credentials inside)
 .env
-.env.example
 .env.local
 .env.*.local
 .env.production
