@@ -27,6 +27,10 @@ export default function Header() {
   const menuItems = [
     { name: 'Sistem Durumu', path: '/dashboard' },
     { name: 'Kriz Yönetimi', path: '/crisis' },
+    { name: 'PCC', path: '/pcc' },
+    { name: 'Hub Kontrol', path: '/hub-control' },
+    { name: 'IOCC', path: '/iocc' },
+    { name: 'Gelir Analizi', path: '/revenue' },
     { name: 'Rota Optimizasyonu', path: '/optimization' },
     { name: 'Yolcu Takip', path: '/passengers' },
     { name: 'Uçuş Kontrol', path: '/flights' },
