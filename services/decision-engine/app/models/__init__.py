@@ -1,23 +1,23 @@
 """Pydantic domain models."""
 
-from app.models.passenger import Passenger, TicketClass, LoyaltyTier
-from app.models.flight import Flight, FlightStatus
-from app.models.crisis import CrisisEvent, CrisisType, CrisisSeverity, CrisisStatus
-from app.models.decision import Decision, DecisionAction, DecisionStatus
 from app.models.compensation import CompensationResult
+from app.models.crisis import CrisisEvent, CrisisSeverity, CrisisStatus, CrisisType
+from app.models.decision import Decision, DecisionAction, DecisionStatus
+from app.models.flight import Flight, FlightStatus
+from app.models.passenger import LoyaltyTier, Passenger, TicketClass
 
 __all__ = [
-    "Passenger",
-    "TicketClass",
-    "LoyaltyTier",
-    "Flight",
-    "FlightStatus",
+    "CompensationResult",
     "CrisisEvent",
-    "CrisisType",
     "CrisisSeverity",
     "CrisisStatus",
+    "CrisisType",
     "Decision",
     "DecisionAction",
     "DecisionStatus",
-    "CompensationResult",
+    "Flight",
+    "FlightStatus",
+    "LoyaltyTier",
+    "Passenger",
+    "TicketClass",
 ]

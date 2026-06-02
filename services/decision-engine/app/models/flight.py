@@ -1,16 +1,17 @@
-from enum import Enum
-from pydantic import BaseModel, Field
-from typing import Optional
 from datetime import datetime
+from enum import StrEnum
 
-class FlightStatus(str, Enum):
+from pydantic import BaseModel, Field
+
+
+class FlightStatus(StrEnum):
     SCHEDULED = "SCHEDULED"
     DELAYED = "DELAYED"
     CANCELLED = "CANCELLED"
     DIVERTED = "DIVERTED"
 
 class Flight(BaseModel):
-    id: Optional[int] = None
+    id: int | None = None
     flight_number: str
     origin: str = Field(..., min_length=3, max_length=3, description="3-letter airport code (IATA)")
     destination: str = Field(..., min_length=3, max_length=3, description="3-letter airport code (IATA)")
@@ -21,7 +22,7 @@ class Flight(BaseModel):
     total_capacity: int
     available_seats: int
     distance_km: float
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
 
     class Config:
         from_attributes = True

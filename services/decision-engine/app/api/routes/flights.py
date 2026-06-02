@@ -1,8 +1,8 @@
 """Flights API routes — Query available flights for rebooking."""
+from datetime import date
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Optional
-from datetime import date
 
 from app.db.database import get_db
 from app.models.flight import Flight
@@ -10,23 +10,23 @@ from app.models.flight import Flight
 router = APIRouter(prefix="/flights", tags=["flights"])
 
 
-@router.get("/", response_model=List[Flight])
+@router.get("/", response_model=list[Flight])
 async def list_flights(
-    origin: Optional[str] = Query(None, description="IATA origin airport code"),
-    destination: Optional[str] = Query(None, description="IATA destination airport code"),
-    departure_date: Optional[date] = Query(None, description="Departure date (YYYY-MM-DD)"),
-    available_seats: Optional[int] = Query(None, ge=1, description="Minimum available seats"),
+    origin: str | None = Query(None, description="IATA origin airport code"),
+    destination: str | None = Query(None, description="IATA destination airport code"),
+    departure_date: date | None = Query(None, description="Departure date (YYYY-MM-DD)"),
+    available_seats: int | None = Query(None, ge=1, description="Minimum available seats"),
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(get_db),
 ):
     """List flights with optional filtering by route, date, and seat availability.
-    
+
     Used by the Rebooking Agent to find candidate flights for displaced passengers.
     """
-    from sqlalchemy import select
+    from sqlalchemy import and_, select
+
     from app.db.models import FlightDB as Flight
-    from sqlalchemy import and_
 
     stmt = select(Flight)
     filters = []
@@ -55,6 +55,7 @@ async def get_flight(
 ):
     """Get full details for a specific flight."""
     from sqlalchemy import select
+
     from app.db.models import FlightDB as Flight
 
     result = await db.execute(select(Flight).where(Flight.id == flight_id))

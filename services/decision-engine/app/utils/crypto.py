@@ -9,11 +9,10 @@ from __future__ import annotations
 
 import base64
 import os
-from typing import Optional
 
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives import padding as sym_padding
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import padding as sym_padding
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 from app.config import settings
 from app.utils.logger import get_logger
@@ -90,7 +89,7 @@ def mask_email(email: str) -> str:
     return ".".join(masked_parts) + "@" + domain
 
 
-def mask_phone(phone: Optional[str]) -> str:
+def mask_phone(phone: str | None) -> str:
     """Mask a phone number, keeping only the last 4 digits."""
     if not phone:
         return "***"

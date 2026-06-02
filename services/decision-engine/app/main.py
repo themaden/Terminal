@@ -1,18 +1,18 @@
 """JetNexus AI — Decision Engine Entry Point."""
-from fastapi import FastAPI, Depends, HTTPException, status
+
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
 
 from app.config import settings
 from app.db.database import Base, engine, get_db
+from app.db.models import AuditLogDB, CrisisDB, DecisionDB, FlightDB, PassengerDB
 from app.db.seed import seed_data
-from app.models.crisis import CrisisEvent, CrisisType, CrisisSeverity
+from app.models.crisis import CrisisEvent, CrisisSeverity, CrisisType
 from app.models.decision import Decision
 from app.models.flight import Flight
 from app.models.passenger import Passenger
 from app.services.crisis_service import CrisisService
-from app.db.models import FlightDB, PassengerDB, DecisionDB, CrisisDB, AuditLogDB
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -67,7 +67,7 @@ async def readiness_check():
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
         db_ok = True
-    except Exception as e:
+    except Exception:
         db_ok = False
     return {
         "ready": db_ok,
@@ -93,10 +93,10 @@ async def trigger_crisis(
     db: AsyncSession = Depends(get_db),
 ):
     """Trigger a crisis event for a flight.
-    
+
     The system will:
     1. Mark the flight as cancelled/delayed
-    2. Identify affected passengers  
+    2. Identify affected passengers
     3. Run MILP optimization to find best rebooking
     4. Generate AI decisions for each passenger
     5. Calculate EU261 compensation amounts
@@ -111,20 +111,21 @@ async def trigger_crisis(
         )
         return crisis
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get(
     "/api/v1/crisis/active",
-    response_model=List[CrisisEvent],
+    response_model=list[CrisisEvent],
     tags=["crisis"],
     summary="List all active crises",
 )
 async def get_active_crises(db: AsyncSession = Depends(get_db)):
     """Return all crises currently in ACTIVE status."""
     from sqlalchemy import select
+
     from app.models.crisis import CrisisStatus
     result = await db.execute(
         select(CrisisDB).where(CrisisDB.status == CrisisStatus.ACTIVE)
@@ -134,7 +135,7 @@ async def get_active_crises(db: AsyncSession = Depends(get_db)):
 
 @app.get(
     "/api/v1/crisis",
-    response_model=List[CrisisEvent],
+    response_model=list[CrisisEvent],
     tags=["crisis"],
     summary="List all crises",
 )
@@ -183,7 +184,7 @@ async def approve_crisis_decisions(crisis_id: int, db: AsyncSession = Depends(ge
 
 @app.get(
     "/api/v1/crisis/{crisis_id}/decisions",
-    response_model=List[Decision],
+    response_model=list[Decision],
     tags=["crisis"],
     summary="Get all decisions for a crisis",
 )
@@ -227,19 +228,19 @@ async def get_crisis_audit(crisis_id: int, db: AsyncSession = Depends(get_db)):
 
 @app.get(
     "/api/v1/flights",
-    response_model=List[Flight],
+    response_model=list[Flight],
     tags=["flights"],
     summary="List all flights",
 )
 async def get_flights(
-    origin: str = None,
-    destination: str = None,
+    origin: str | None = None,
+    destination: str | None = None,
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(get_db),
 ):
     """List flights with optional filtering by origin/destination."""
-    from sqlalchemy import select, and_
+    from sqlalchemy import and_, select
     stmt = select(FlightDB)
     filters = []
     if origin:
@@ -274,7 +275,7 @@ async def get_flight(flight_id: int, db: AsyncSession = Depends(get_db)):
 
 @app.get(
     "/api/v1/passengers",
-    response_model=List[Passenger],
+    response_model=list[Passenger],
     tags=["passengers"],
     summary="List all passengers",
 )
@@ -315,7 +316,8 @@ async def get_passenger(passenger_id: int, db: AsyncSession = Depends(get_db)):
 )
 async def get_stats(db: AsyncSession = Depends(get_db)):
     """Return aggregate statistics for the dashboard."""
-    from sqlalchemy import select, func
+    from sqlalchemy import func, select
+
     from app.models.crisis import CrisisStatus
 
     total_crises = await db.scalar(select(func.count(CrisisDB.id)))

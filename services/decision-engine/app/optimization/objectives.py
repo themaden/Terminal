@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pulp import LpProblem, LpVariable, lpSum
 
-from app.optimization.models import FlightOption, OptimizationInput, PassengerInput
+from app.optimization.models import OptimizationInput
 
 
 def build_cost_minimisation_objective(

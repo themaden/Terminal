@@ -1,5 +1,5 @@
 """Database package."""
 
-from app.db.database import get_db, engine, async_session_maker
+from app.db.database import async_session_maker, engine, get_db
 
-__all__ = ["get_db", "engine", "async_session_maker"]
+__all__ = ["async_session_maker", "engine", "get_db"]

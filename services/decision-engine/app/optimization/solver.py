@@ -1,7 +1,9 @@
+
 import pulp
-from typing import Dict, List, Optional
+
+from app.models.passenger import LoyaltyTier, TicketClass
 from app.optimization.models import OptimizationInput, OptimizationResult
-from app.models.passenger import TicketClass, LoyaltyTier
+
 
 class CrisisSolver:
     """
@@ -9,7 +11,7 @@ class CrisisSolver:
     It minimizes total operational & compensation costs under capacity constraints,
     ticket class rules, and connections.
     """
-    
+
     def __init__(self, inputs: OptimizationInput):
         self.inputs = inputs
 
@@ -26,7 +28,7 @@ class CrisisSolver:
         # Include None as a dummy flight (representing refunding / no rebooking)
         p_ids = [p.id for p in passengers]
         f_ids = [f.id for f in flights] + [0] # 0 represents Refund/No-Flight
-        
+
         x = pulp.LpVariable.dicts("assign", (p_ids, f_ids), cat=pulp.LpBinary)
 
         # Set up cost dict for Refund/No-Flight
@@ -41,13 +43,13 @@ class CrisisSolver:
                 refund_cost = 3000.0
             elif p.ticket_class == TicketClass.BUSINESS:
                 refund_cost = 2000.0
-                
+
             # Loyalty multiplier (higher penalty for VIPs)
             if p.loyalty_tier == LoyaltyTier.PLATINUM:
                 refund_cost *= 2.0
             elif p.loyalty_tier == LoyaltyTier.GOLD:
                 refund_cost *= 1.5
-                
+
             costs[p_id][0] = refund_cost
 
         # Objective Function: Minimize sum(costs[p, f] * x[p, f])
@@ -82,7 +84,7 @@ class CrisisSolver:
         # Extract results
         assignments = {}
         total_cost = 0.0
-        
+
         if status == pulp.LpStatusOptimal:
             total_cost = pulp.value(prob.objective)
             for p in passengers:

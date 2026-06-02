@@ -1,22 +1,23 @@
 import asyncio
 from datetime import datetime, timedelta
-from sqlalchemy.ext.asyncio import AsyncSession
+
 from sqlalchemy import select
-from app.db.database import async_session_maker, Base, engine
-from app.db.models import PassengerDB, FlightDB
-from app.models.passenger import TicketClass, LoyaltyTier
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.database import async_session_maker
+from app.db.models import FlightDB, PassengerDB
 from app.models.flight import FlightStatus
+from app.models.passenger import LoyaltyTier, TicketClass
+
 
 async def seed_data(session: AsyncSession):
     # Check if we already have passengers
     result = await session.execute(select(PassengerDB))
     if result.scalars().first() is not None:
-        print("Database already has data. Skipping seed.")
         return
 
-    print("Seeding flights...")
     now = datetime.utcnow()
-    
+
     flights = [
         # The main flights affected by cancellations
         FlightDB(
@@ -63,20 +64,19 @@ async def seed_data(session: AsyncSession):
             total_capacity=165, available_seats=80, distance_km=350.0
         )
     ]
-    
+
     session.add_all(flights)
     await session.flush() # Get IDs
 
-    print("Seeding passengers...")
     passengers = []
-    
+
     # Let's seed 50 passengers
     first_names = ["Ahmet", "Mehmet", "Ayşe", "Fatma", "Mustafa", "Emine", "Ali", "Hatice", "Hüseyin", "Zeynep",
                    "John", "Sarah", "David", "Emma", "Michael", "Olivia", "Jean", "Marie", "Pierre", "Sophie",
                    "Murat", "Can", "Ece", "Deniz", "Selim", "Yasemin", "Oğuz", "Dilek", "Hakan", "Büşra",
                    "James", "Robert", "Patricia", "Linda", "Elizabeth", "William", "Richard", "Thomas", "Charles", "Barbara",
                    "Kerem", "Aslı", "Burak", "Gamze", "Selin", "Tariq", "Fatima", "Youssef", "Layla", "Amir"]
-    
+
     last_names = ["Yılmaz", "Kaya", "Demir", "Çelik", "Şahin", "Yıldız", "Öztürk", "Aydın", "Özdemir", "Arslan",
                   "Smith", "Johnson", "Williams", "Brown", "Jones", "Miller", "Davis", "Garcia", "Rodriguez", "Wilson",
                   "Koç", "Sabancı", "Bulut", "Tekin", "Acar", "Güneş", "Yıldırım", "Kılıç", "Aslan", "Karataş",
@@ -91,7 +91,7 @@ async def seed_data(session: AsyncSession):
             ticket_class = TicketClass.FIRST
         elif i % 5 == 0:
             ticket_class = TicketClass.BUSINESS
-            
+
         loyalty_tier = LoyaltyTier.NONE
         if i % 6 == 0:
             loyalty_tier = LoyaltyTier.PLATINUM
@@ -99,7 +99,7 @@ async def seed_data(session: AsyncSession):
             loyalty_tier = LoyaltyTier.GOLD
         elif i % 3 == 0:
             loyalty_tier = LoyaltyTier.SILVER
-            
+
         special_needs = None
         if i % 12 == 0:
             special_needs = "Wheelchair required"
@@ -120,7 +120,6 @@ async def seed_data(session: AsyncSession):
 
     session.add_all(passengers)
     await session.commit()
-    print("Database seeding completed successfully.")
 
 async def run_seed():
     async with async_session_maker() as session:

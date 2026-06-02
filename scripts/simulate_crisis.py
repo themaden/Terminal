@@ -1,7 +1,5 @@
 import argparse
 import requests
-import json
-import time
 
 def simulate_crisis(flight_number, crisis_type, reason, severity):
     url = "http://localhost:8000/api/v1/crisis/trigger"

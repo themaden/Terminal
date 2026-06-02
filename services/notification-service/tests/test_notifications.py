@@ -1,11 +1,13 @@
-"""
-Tests for Aero-Agent Notification Channels.
-"""
+# ruff: noqa: E402
+import sys
+from unittest.mock import MagicMock, patch
+# Mock twilio module for systems without it installed
+sys.modules['twilio'] = MagicMock()
+sys.modules['twilio.rest'] = MagicMock()
 
 import asyncio
 import time
 import unittest
-from unittest.mock import patch, MagicMock, AsyncMock
 
 from app.rate_limiter import TokenBucketRateLimiter
 
@@ -62,9 +64,15 @@ class TestTokenBucketRateLimiter(unittest.TestCase):
 class TestSMSChannel(unittest.TestCase):
     """Tests for SMS channel."""
 
-    @patch("app.channels.sms.TwilioSMSChannel.client", new_callable=lambda: property(lambda self: MagicMock()))
-    def test_sms_send_creates_message(self, mock_client_prop):
+    @patch("twilio.rest.Client")
+    def test_sms_send_creates_message(self, mock_twilio_client):
         from app.channels.sms import TwilioSMSChannel
+
+        mock_client_instance = mock_twilio_client.return_value
+        mock_message = MagicMock()
+        mock_message.sid = "SM_test_123"
+        mock_message.status = "queued"
+        mock_client_instance.messages.create.return_value = mock_message
 
         channel = TwilioSMSChannel(
             account_sid="test_sid",
@@ -72,19 +80,12 @@ class TestSMSChannel(unittest.TestCase):
             from_number="+1234567890",
         )
 
-        mock_message = MagicMock()
-        mock_message.sid = "SM_test_123"
-        mock_message.status = "queued"
-
-        channel._client = MagicMock()
-        channel._client.messages.create.return_value = mock_message
-
         result = asyncio.get_event_loop().run_until_complete(
             channel.send("+905551234567", "Test message")
         )
 
         self.assertEqual(result, "SM_test_123")
-        channel._client.messages.create.assert_called_once()
+        mock_client_instance.messages.create.assert_called_once()
 
 
 class TestWhatsAppChannel(unittest.TestCase):

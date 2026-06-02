@@ -1,16 +1,18 @@
+from datetime import UTC, datetime
+
 import httpx
-from typing import Dict, List, Any, Optional
-from datetime import datetime, timezone
-from app.config import settings
-from app.models.passenger import Passenger
-from app.models.flight import Flight
-from app.models.decision import Decision, DecisionAction, DecisionStatus
+
 from app.agents.prompts import (
-    REBOOKING_AGENT_PROMPT,
-    COMPENSATION_AGENT_PROMPT,
     COMMUNICATION_AGENT_PROMPT,
-    COMPLIANCE_AGENT_PROMPT
+    COMPENSATION_AGENT_PROMPT,
+    COMPLIANCE_AGENT_PROMPT,
+    REBOOKING_AGENT_PROMPT,
 )
+from app.config import settings
+from app.models.decision import Decision, DecisionAction, DecisionStatus
+from app.models.flight import Flight
+from app.models.passenger import Passenger
+
 
 class CrisisCoordinator:
     """
@@ -18,7 +20,7 @@ class CrisisCoordinator:
     based on optimization results.
     """
 
-    def __init__(self, openai_api_key: Optional[str] = None):
+    def __init__(self, openai_api_key: str | None = None):
         self.api_key = openai_api_key or settings.OPENAI_API_KEY
         self.client = httpx.AsyncClient(timeout=60.0)
 
@@ -26,7 +28,7 @@ class CrisisCoordinator:
         """Call OpenAI Chat Completions API. Falls back to mock if key is missing."""
         if not self.api_key or self.api_key.startswith("sk-your"):
             # Fallback mock LLM response when OpenAI API Key is missing/placeholder
-            return f"[MOCK AI RESPONSE] Rule-based decision applied. No OpenAI key configured."
+            return "[MOCK AI RESPONSE] Rule-based decision applied. No OpenAI key configured."
 
         try:
             # BUG FIX: was 'completypes' — corrected to 'completions'
@@ -52,30 +54,30 @@ class CrisisCoordinator:
             else:
                 return f"[LLM ERROR] Status {response.status_code}: {response.text[:200]}"
         except Exception as e:
-            return f"[LLM EXCEPTION] {str(e)}"
+            return f"[LLM EXCEPTION] {e!s}"
 
     async def process_passenger_decisions(
         self,
         crisis_id: int,
-        passengers: List[Passenger],
-        flights_map: Dict[int, Flight],
-        assignments: Dict[int, Optional[int]],
-        compensation_map: Dict[int, float],
+        passengers: list[Passenger],
+        flights_map: dict[int, Flight],
+        assignments: dict[int, int | None],
+        compensation_map: dict[int, float],
         reason: str
-    ) -> List[Decision]:
-        
+    ) -> list[Decision]:
+
         decisions = []
-        today_utc = datetime.now(timezone.utc).date()
-        
+        today_utc = datetime.now(UTC).date()
+
         for p in passengers:
             p_id = p.id
             assigned_f_id = assignments.get(p_id)
             comp_amount = compensation_map.get(p_id, 0.0)
-            
+
             # Determine Action
             action = DecisionAction.NO_ACTION
             hotel_name = None
-            
+
             if assigned_f_id is not None:
                 action = DecisionAction.REBOOK
                 assigned_flight = flights_map.get(assigned_f_id)
@@ -96,11 +98,11 @@ class CrisisCoordinator:
             # Step 1: Rebooking Agent
             rebook_prompt = f"Passenger class: {p.ticket_class}, Loyalty: {p.loyalty_tier}. Assigned flight ID: {assigned_f_id}. Reason: {reason}."
             rebook_notes = await self._call_llm(REBOOKING_AGENT_PROMPT, rebook_prompt)
-            
+
             # Step 2: Compensation Agent
             comp_prompt = f"Passenger ID: {p_id}. Calculated EU261 compensation: {comp_amount} EUR. Reason: {reason}. Action: {action.value}."
-            comp_notes = await self._call_llm(COMPENSATION_AGENT_PROMPT, comp_prompt)
-            
+            await self._call_llm(COMPENSATION_AGENT_PROMPT, comp_prompt)
+
             # Step 3: Communication Agent (generates passenger messages in TR & EN)
             ticket_class_str = p.ticket_class.value if hasattr(p.ticket_class, 'value') else str(p.ticket_class)
             comm_prompt = (
@@ -110,7 +112,7 @@ class CrisisCoordinator:
                 f"Hotel: {hotel_name}. Compensation: {comp_amount} EUR. Reason: {reason}."
             )
             comm_text = await self._call_llm(COMMUNICATION_AGENT_PROMPT, comm_prompt)
-            
+
             # Step 4: Compliance Agent Audit
             compliance_prompt = (
                 f"Action: {action.value}, Hotel: {hotel_name}, "

@@ -2,7 +2,6 @@
 import time
 from collections import defaultdict
 from threading import Lock
-from typing import Tuple
 
 
 class RateLimiter:
@@ -19,7 +18,7 @@ class RateLimiter:
         self._buckets: dict[str, list[float]] = defaultdict(list)
         self._lock = Lock()
 
-    def check(self, key: str) -> Tuple[bool, int]:
+    def check(self, key: str) -> tuple[bool, int]:
         """Check whether the given key (e.g., IP, API key) is within rate limits.
 
         Returns:

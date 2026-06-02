@@ -1,17 +1,17 @@
 """Crisis management API routes."""
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
 
 from app.db.database import get_db
 from app.db.models import CrisisDB
-from app.models.crisis import CrisisCreate, CrisisEvent, CrisisStatusUpdate, CrisisStatus
+from app.models.crisis import CrisisCreate, CrisisEvent, CrisisStatus, CrisisStatusUpdate
 from app.services.crisis_service import CrisisService
 
 router = APIRouter(prefix="/crisis", tags=["crisis"])
 
 
-@router.get("/", response_model=List[CrisisEvent])
+@router.get("/", response_model=list[CrisisEvent])
 async def list_crises(
     skip: int = 0,
     limit: int = 50,
@@ -48,7 +48,7 @@ async def create_crisis(
     db: AsyncSession = Depends(get_db),
 ):
     """Create and trigger a new crisis event.
-    
+
     The decision engine is invoked to process the crisis.
     """
     try:
@@ -64,12 +64,12 @@ async def create_crisis(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
+        ) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e),
-        )
+        ) from e
 
 
 @router.patch("/{crisis_id}/status", response_model=CrisisEvent)
@@ -87,12 +87,12 @@ async def update_crisis_status(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Crisis {crisis_id} not found",
         )
-    
+
     crisis.status = status_update.status
     if status_update.status == CrisisStatus.RESOLVED:
         from datetime import datetime
         crisis.resolved_at = datetime.utcnow()
-        
+
     await db.commit()
     await db.refresh(crisis)
     return CrisisEvent.model_validate(crisis)
@@ -111,9 +111,9 @@ async def retry_crisis(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
+        ) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e),
-        )
+        ) from e

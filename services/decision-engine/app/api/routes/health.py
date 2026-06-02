@@ -1,6 +1,7 @@
 """Health check route — used by Docker, Kubernetes, and load balancers."""
+from datetime import UTC, datetime
+
 from fastapi import APIRouter
-from datetime import datetime, timezone
 
 router = APIRouter(prefix="/health", tags=["health"])
 
@@ -11,7 +12,7 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "decision-engine",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
@@ -32,5 +33,5 @@ async def readiness_check():
         "checks": {
             "database": db_status,
         },
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }

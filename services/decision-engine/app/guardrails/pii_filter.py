@@ -1,6 +1,6 @@
 """PII Filter — Masks personally identifiable information before logging or LLM calls."""
 import re
-from typing import Any, Dict
+from typing import Any
 
 # Regex patterns for common PII types
 _PATTERNS = {
@@ -21,9 +21,9 @@ class PIIFilter:
             text = pattern.sub(f"[REDACTED_{label.upper()}]", text)
         return text
 
-    def mask_dict(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def mask_dict(self, data: dict[str, Any]) -> dict[str, Any]:
         """Recursively mask PII in all string values of a dict."""
-        result: Dict[str, Any] = {}
+        result: dict[str, Any] = {}
         for key, value in data.items():
             if isinstance(value, str):
                 result[key] = self.mask(value)

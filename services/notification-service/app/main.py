@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import List
 import os
 from twilio.rest import Client
 import logging

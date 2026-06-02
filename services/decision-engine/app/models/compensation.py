@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 class CompensationResult(BaseModel):
     passenger_id: int
     regulation: str = "EU261/2004"

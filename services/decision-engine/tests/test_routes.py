@@ -1,13 +1,14 @@
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from fastapi import FastAPI, status
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from unittest.mock import AsyncMock, patch
 
 from app.api.routes.crisis import router as crisis_router
 from app.db.database import get_db
 from app.db.models import CrisisDB, FlightDB
-from app.models.crisis import CrisisType, CrisisSeverity, CrisisStatus, CrisisEvent
+from app.models.crisis import CrisisEvent, CrisisSeverity, CrisisStatus, CrisisType
 
 
 @pytest.fixture
@@ -55,7 +56,7 @@ async def test_create_crisis_success(client, db_session: AsyncSession):
     from datetime import datetime, timedelta
     flight.scheduled_departure = datetime.utcnow() + timedelta(hours=2)
     flight.scheduled_arrival = datetime.utcnow() + timedelta(hours=6)
-    
+
     db_session.add(flight)
     await db_session.commit()
 

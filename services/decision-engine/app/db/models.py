@@ -1,11 +1,15 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, Enum as SQLEnum
-from sqlalchemy.orm import relationship
 from datetime import datetime
+
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.orm import relationship
+
 from app.db.database import Base
-from app.models.passenger import TicketClass, LoyaltyTier
-from app.models.flight import FlightStatus
-from app.models.crisis import CrisisType, CrisisSeverity, CrisisStatus
+from app.models.crisis import CrisisSeverity, CrisisStatus, CrisisType
 from app.models.decision import DecisionAction, DecisionStatus
+from app.models.flight import FlightStatus
+from app.models.passenger import LoyaltyTier, TicketClass
+
 
 class PassengerDB(Base):
     __tablename__ = "passengers"

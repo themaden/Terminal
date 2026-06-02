@@ -1,32 +1,33 @@
-from enum import Enum
-from pydantic import BaseModel, Field
-from typing import Optional
 from datetime import datetime
+from enum import StrEnum
 
-class CrisisType(str, Enum):
+from pydantic import BaseModel, Field
+
+
+class CrisisType(StrEnum):
     CANCELLATION = "CANCELLATION"
     DELAY = "DELAY"
     DIVERSION = "DIVERSION"
 
-class CrisisSeverity(str, Enum):
+class CrisisSeverity(StrEnum):
     LOW = "LOW"
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
     CRITICAL = "CRITICAL"
 
-class CrisisStatus(str, Enum):
+class CrisisStatus(StrEnum):
     ACTIVE = "ACTIVE"
     RESOLVING = "RESOLVING"
     RESOLVED = "RESOLVED"
 
 class CrisisEvent(BaseModel):
-    id: Optional[int] = None
+    id: int | None = None
     crisis_type: CrisisType
     affected_flight_id: int
     reason: str
     severity: CrisisSeverity = CrisisSeverity.MEDIUM
     triggered_at: datetime = Field(default_factory=datetime.utcnow)
-    resolved_at: Optional[datetime] = None
+    resolved_at: datetime | None = None
     status: CrisisStatus = CrisisStatus.ACTIVE
     affected_passenger_count: int = 0
 

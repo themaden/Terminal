@@ -1,6 +1,5 @@
 """Prompt Guard — Detects and blocks prompt injection attacks before LLM calls."""
 import re
-from typing import Tuple
 
 # Known injection patterns (extend as needed)
 _INJECTION_PATTERNS = [
@@ -22,7 +21,7 @@ MAX_INPUT_LENGTH = 4000
 class PromptGuard:
     """Validates LLM inputs for prompt injection and token abuse."""
 
-    def check(self, text: str) -> Tuple[bool, str]:
+    def check(self, text: str) -> tuple[bool, str]:
         """Return (is_safe, reason).
 
         Args:
@@ -43,7 +42,7 @@ class PromptGuard:
 
     def sanitize(self, text: str) -> str:
         """Remove injection patterns from text (best-effort sanitization).
-        
+
         Prefer check() + rejection over sanitize() in production.
         """
         for pattern in _INJECTION_PATTERNS:

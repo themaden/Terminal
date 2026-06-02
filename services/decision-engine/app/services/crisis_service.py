@@ -1,17 +1,17 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
-from typing import List, Optional, Dict
 from datetime import datetime
-import json
 
-from app.db.models import CrisisDB, PassengerDB, FlightDB, DecisionDB, AuditLogDB
-from app.models.crisis import CrisisEvent, CrisisType, CrisisSeverity, CrisisStatus
-from app.models.passenger import Passenger, TicketClass
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.agents.coordinator import CrisisCoordinator
+from app.db.models import AuditLogDB, CrisisDB, DecisionDB, FlightDB, PassengerDB
+from app.models.crisis import CrisisEvent, CrisisSeverity, CrisisStatus, CrisisType
+from app.models.decision import DecisionStatus
 from app.models.flight import Flight, FlightStatus
-from app.models.decision import Decision, DecisionAction, DecisionStatus
+from app.models.passenger import Passenger, TicketClass
 from app.optimization.solver import CrisisSolver, OptimizationInput
 from app.regulations.eu261 import EU261Calculator
-from app.agents.coordinator import CrisisCoordinator
+
 
 class CrisisService:
     """
@@ -23,7 +23,7 @@ class CrisisService:
     5. Dispatches multi-agent crew to refine decisions and messages
     6. Manages Human-in-the-Loop approvals
     """
-    
+
     @staticmethod
     async def trigger_crisis(
         session: AsyncSession,
@@ -32,7 +32,7 @@ class CrisisService:
         reason: str,
         severity: CrisisSeverity
     ) -> CrisisEvent:
-        
+
         # 1. Find the affected flight
         flight_result = await session.execute(
             select(FlightDB).where(FlightDB.flight_number == flight_number)
@@ -43,12 +43,12 @@ class CrisisService:
 
         # Update flight status
         affected_flight.status = FlightStatus.CANCELLED if crisis_type == CrisisType.CANCELLATION else FlightStatus.DELAYED
-        
+
         # 2. Query all passengers booked on this flight
         # For our seed/mock system, we select a subset of passengers
         pax_result = await session.execute(select(PassengerDB))
         all_passengers = pax_result.scalars().all()
-        
+
         # Assign passengers to the crisis (we filter based on index for simulation)
         # IST-LHR (TK1981) has passengers 0 to 24
         # IST-CDG (TK1821) has passengers 25 to 49
@@ -91,7 +91,7 @@ class CrisisService:
         rebooking_costs = {}
         flight_capacities = {}
         compensation_map = {}
-        
+
         for f in alt_flights:
             flight_capacities[f.id] = f.available_seats
 
@@ -103,7 +103,7 @@ class CrisisService:
             delay = 6.0 if crisis_type == CrisisType.CANCELLATION else 3.5
             comp = calculator.calculate_compensation(p.id, affected_flight.distance_km, delay)
             compensation_map[p.id] = comp.amount_eur
-            
+
             for f in alt_flight_models:
                 # Operational cost = delay cost + compensation + class downgrade penalty
                 # High cost if we downgrade loyalty VIPs
@@ -149,7 +149,7 @@ class CrisisService:
                 agent_reasoning=dec.agent_reasoning
             )
             session.add(dec_db)
-            
+
             # Update seat capacity in flights
             if dec.new_flight_id:
                 await session.execute(
@@ -179,14 +179,14 @@ class CrisisService:
             .where(DecisionDB.crisis_id == crisis_id)
             .values(status=DecisionStatus.APPROVED, updated_at=datetime.utcnow())
         )
-        
+
         # Update crisis status to RESOLVED
         await session.execute(
             update(CrisisDB)
             .where(CrisisDB.id == crisis_id)
             .values(status=CrisisStatus.RESOLVED, resolved_at=datetime.utcnow())
         )
-        
+
         # Log audit
         audit = AuditLogDB(
             crisis_id=crisis_id,
@@ -203,7 +203,7 @@ class CrisisService:
     async def process_crisis(session: AsyncSession, crisis_id: int) -> None:
         """Reprocess decisions for a crisis: clears old decisions and reruns the solver/agents."""
         from sqlalchemy import delete
-        
+
         # 1. Fetch the crisis
         result = await session.execute(select(CrisisDB).where(CrisisDB.id == crisis_id))
         crisis_db = result.scalars().first()
