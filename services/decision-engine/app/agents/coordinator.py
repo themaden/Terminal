@@ -1,5 +1,6 @@
 import httpx
 from typing import Dict, List, Any, Optional
+from datetime import datetime, timezone
 from app.config import settings
 from app.models.passenger import Passenger
 from app.models.flight import Flight
@@ -19,16 +20,18 @@ class CrisisCoordinator:
 
     def __init__(self, openai_api_key: Optional[str] = None):
         self.api_key = openai_api_key or settings.OPENAI_API_KEY
-        self.client = httpx.AsyncClient(timeout=30.0)
+        self.client = httpx.AsyncClient(timeout=60.0)
 
     async def _call_llm(self, system_prompt: str, user_prompt: str) -> str:
-        if not self.api_key:
-            # Fallback mock LLM response when OpenAI API Key is missing
-            return f"[MOCK AI RESPONSE] Processed successfully based on rules."
+        """Call OpenAI Chat Completions API. Falls back to mock if key is missing."""
+        if not self.api_key or self.api_key.startswith("sk-your"):
+            # Fallback mock LLM response when OpenAI API Key is missing/placeholder
+            return f"[MOCK AI RESPONSE] Rule-based decision applied. No OpenAI key configured."
 
         try:
+            # BUG FIX: was 'completypes' — corrected to 'completions'
             response = await self.client.post(
-                "https://api.openai.com/v1/chat/completypes",
+                "https://api.openai.com/v1/chat/completions",
                 headers={
                     "Authorization": f"Bearer {self.api_key}",
                     "Content-Type": "application/json"
@@ -39,14 +42,15 @@ class CrisisCoordinator:
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
                     ],
-                    "temperature": settings.LLM_TEMPERATURE
+                    "temperature": settings.LLM_TEMPERATURE,
+                    "max_tokens": settings.LLM_MAX_TOKENS,
                 }
             )
             if response.status_code == 200:
                 data = response.json()
                 return data["choices"][0]["message"]["content"]
             else:
-                return f"[LLM ERROR] Status {response.status_code}: {response.text}"
+                return f"[LLM ERROR] Status {response.status_code}: {response.text[:200]}"
         except Exception as e:
             return f"[LLM EXCEPTION] {str(e)}"
 
@@ -61,6 +65,7 @@ class CrisisCoordinator:
     ) -> List[Decision]:
         
         decisions = []
+        today_utc = datetime.now(timezone.utc).date()
         
         for p in passengers:
             p_id = p.id
@@ -74,12 +79,15 @@ class CrisisCoordinator:
             if assigned_f_id is not None:
                 action = DecisionAction.REBOOK
                 assigned_flight = flights_map.get(assigned_f_id)
-                # If delay is overnight, assign hotel
                 if assigned_flight:
-                    # Let's say delay of > 8 hours or overnight triggers hotel
-                    action = DecisionAction.REBOOK
-                    if assigned_flight.scheduled_departure.day != datetime_now_day():
-                        hotel_name = "Aviation Airport Hotel (4-Star)" if p.ticket_class == "ECONOMY" else "Radisson Blu Airport Hotel (5-Star)"
+                    # Hotel required if the alternative flight departs on a different calendar day (UTC)
+                    flight_date = assigned_flight.scheduled_departure.date()
+                    if flight_date != today_utc:
+                        ticket_class_val = p.ticket_class.value if hasattr(p.ticket_class, 'value') else str(p.ticket_class)
+                        if ticket_class_val in ("ECONOMY",):
+                            hotel_name = "Aviation Airport Hotel (4-Star)"
+                        else:
+                            hotel_name = "Radisson Blu Airport Hotel (5-Star)"
             else:
                 # No flight assigned -> Refund
                 action = DecisionAction.REFUND
@@ -90,15 +98,24 @@ class CrisisCoordinator:
             rebook_notes = await self._call_llm(REBOOKING_AGENT_PROMPT, rebook_prompt)
             
             # Step 2: Compensation Agent
-            comp_prompt = f"Passenger ID: {p_id}. Calculated EU261 compensation: {comp_amount} EUR. Distance: 2500 km. Delay hours: 6."
+            comp_prompt = f"Passenger ID: {p_id}. Calculated EU261 compensation: {comp_amount} EUR. Reason: {reason}. Action: {action.value}."
             comp_notes = await self._call_llm(COMPENSATION_AGENT_PROMPT, comp_prompt)
             
-            # Step 3: Communication Agent (generates messages)
-            comm_prompt = f"Passenger Name: {p.first_name} {p.last_name}, Language preference: Turkish & English. Action: {action.value}. New flight: {assigned_f_id}. Hotel: {hotel_name}. Comp: {comp_amount} EUR."
+            # Step 3: Communication Agent (generates passenger messages in TR & EN)
+            ticket_class_str = p.ticket_class.value if hasattr(p.ticket_class, 'value') else str(p.ticket_class)
+            comm_prompt = (
+                f"Passenger Name: {p.first_name} {p.last_name}, "
+                f"Class: {ticket_class_str}, Language: Turkish & English. "
+                f"Action: {action.value}. New flight: {assigned_f_id}. "
+                f"Hotel: {hotel_name}. Compensation: {comp_amount} EUR. Reason: {reason}."
+            )
             comm_text = await self._call_llm(COMMUNICATION_AGENT_PROMPT, comm_prompt)
             
             # Step 4: Compliance Agent Audit
-            compliance_prompt = f"Action: {action.value}, Hotel: {hotel_name}, Compensation: {comp_amount}. Rebook notes: {rebook_notes}."
+            compliance_prompt = (
+                f"Action: {action.value}, Hotel: {hotel_name}, "
+                f"Compensation: {comp_amount} EUR. Rebooking notes: {rebook_notes[:300]}."
+            )
             compliance_audit = await self._call_llm(COMPLIANCE_AGENT_PROMPT, compliance_prompt)
 
             # Store the consolidated decision
@@ -111,12 +128,12 @@ class CrisisCoordinator:
                 hotel_name=hotel_name,
                 status=DecisionStatus.PENDING,
                 agent_confidence=0.95,
-                agent_reasoning=f"Rebook Validation: {rebook_notes[:200]}...\nCompliance: {compliance_audit[:100]}...\nMessage: {comm_text[:300]}"
+                agent_reasoning=(
+                    f"Rebook: {rebook_notes[:200]}\n"
+                    f"Compliance: {compliance_audit[:150]}\n"
+                    f"Message: {comm_text[:300]}"
+                )
             )
             decisions.append(dec)
 
         return decisions
-
-def datetime_now_day() -> int:
-    from datetime import datetime
-    return datetime.utcnow().day

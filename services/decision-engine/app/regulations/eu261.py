@@ -1,17 +1,21 @@
 from app.models.compensation import CompensationResult
 
+
 class EU261Calculator:
     """
-    Calculator for EU261/2004 Regulation passenger compensations.
-    
-    Rules:
-    - Distance <= 1500 km: 250 EUR
-    - Distance 1500 - 3500 km: 400 EUR
-    - Distance > 3500 km: 600 EUR
-    
-    If passenger is rebooked and arrives at final destination with delay of:
-    - < 2h (<=1500km), < 3h (1500-3500km), < 4h (>3500km): 50% reduction in compensation
-    If delay is < 3h at arrival: 0 EUR compensation (delay thresholds)
+    Calculator for EU Regulation 261/2004 passenger compensations.
+
+    Rules (distance-based base amounts):
+    - Distance ≤ 1500 km  : €250
+    - Distance 1500–3500 km : €400
+    - Distance > 3500 km  : €600
+
+    50% reduction applied when:
+    - ≤1500 km: delay 3–2 h reduction threshold (≤2 h → 50%)
+    - 1500–3500 km: delay 3–3 h threshold (≤3 h → 50%)
+    - >3500 km: delay 3–4 h range (≤4 h → 50% i.e. €300)
+
+    No compensation if delay < 3 h at final destination.
     """
 
     @staticmethod
@@ -19,28 +23,29 @@ class EU261Calculator:
         passenger_id: int,
         distance_km: float,
         delay_hours: float,
-        is_eu_flight: bool = True
+        is_eu_flight: bool = True,
     ) -> CompensationResult:
+        """Full method signature used by CrisisService."""
         if not is_eu_flight:
             return CompensationResult(
                 passenger_id=passenger_id,
                 distance_km=distance_km,
                 delay_hours=delay_hours,
                 amount_eur=0.0,
-                category="NONE"
+                category="NONE",
             )
 
         if delay_hours < 3.0:
-            # Under 3 hours delay at final destination -> No compensation
+            # Under 3 hours → No compensation
             return CompensationResult(
                 passenger_id=passenger_id,
                 distance_km=distance_km,
                 delay_hours=delay_hours,
                 amount_eur=0.0,
-                category="NONE"
+                category="NONE",
             )
 
-        # Base Compensation amounts based on distance
+        # Base amounts by distance
         if distance_km <= 1500.0:
             amount = 250.0
             category = "SHORT"
@@ -54,8 +59,7 @@ class EU261Calculator:
             category = "LONG"
             reduction_threshold = 4.0
 
-        # Apply 50% reduction if rebooked flight arrives within reasonable window
-        # (This applies to cancellation rebookings where delay is minimal)
+        # 50% reduction if rebooked and arrival delay ≤ reduction_threshold
         if delay_hours <= reduction_threshold:
             amount *= 0.5
 
@@ -64,5 +68,24 @@ class EU261Calculator:
             distance_km=distance_km,
             delay_hours=delay_hours,
             amount_eur=amount,
-            category=category
+            category=category,
         )
+
+    def calculate(self, distance_km: float, delay_minutes: float) -> dict:
+        """Simplified interface used by unit tests and external callers.
+
+        Args:
+            distance_km: Great-circle distance of the flight in kilometres.
+            delay_minutes: Arrival delay at final destination in minutes.
+
+        Returns:
+            dict with 'compensation_eur' key.
+        """
+        delay_hours = delay_minutes / 60.0
+        # Use passenger_id=0 as a sentinel for non-personalised calculations
+        result = EU261Calculator.calculate_compensation(
+            passenger_id=0,
+            distance_km=distance_km,
+            delay_hours=delay_hours,
+        )
+        return {"compensation_eur": result.amount_eur, "category": result.category}

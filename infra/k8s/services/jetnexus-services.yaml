@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: decision-engine
+  namespace: jetnexus
+  labels:
+    app: decision-engine
+spec:
+  selector:
+    app: decision-engine
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ingestion-service
+  namespace: jetnexus
+  labels:
+    app: ingestion-service
+spec:
+  selector:
+    app: ingestion-service
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: jetnexus
+  labels:
+    app: notification-service
+spec:
+  selector:
+    app: notification-service
+  ports:
+    - protocol: TCP
+      port: 8001
+      targetPort: 8001
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: jetnexus
+  labels:
+    app: frontend
+spec:
+  selector:
+    app: frontend
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jetnexus
+  labels:
+    project: jetnexus-ai

@@ -1,0 +1,55 @@
+# ─────────────────────────────────────────────────────────────
+# Prometheus Alerting Rules — JetNexus AI
+# ─────────────────────────────────────────────────────────────
+groups:
+  - name: jetnexus_alerts
+    rules:
+      # Decision Engine is down
+      - alert: DecisionEngineDown
+        expr: up{job="decision-engine"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Decision Engine is down"
+          description: "The FastAPI decision engine has been unreachable for more than 1 minute."
+
+      # High crisis processing latency
+      - alert: HighCrisisLatency
+        expr: histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{job="decision-engine", handler="/crisis"}[5m])) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High crisis processing latency"
+          description: "P99 crisis endpoint latency exceeds 10 seconds."
+
+      # Kafka producer errors
+      - alert: KafkaProducerErrors
+        expr: rate(kafka_producer_record_error_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Kafka producer errors detected"
+          description: "Kafka is reporting > 0.1 producer errors/sec."
+
+      # Database connection pool exhausted
+      - alert: DBConnectionPoolExhausted
+        expr: pg_stat_activity_count{state="active"} > 90
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL connection pool near limit"
+          description: "Active DB connections exceed 90."
+
+      # Notification service SMS failures
+      - alert: SMSDeliveryFailures
+        expr: rate(notification_sms_failures_total[5m]) > 0.5
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High SMS delivery failure rate"
+          description: "SMS failure rate exceeds 0.5/sec over 5 minutes."

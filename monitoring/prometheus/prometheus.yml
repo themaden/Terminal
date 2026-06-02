@@ -1,0 +1,62 @@
+# ─────────────────────────────────────────────────────────────
+# Prometheus Configuration — JetNexus AI
+# ─────────────────────────────────────────────────────────────
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: "jetnexus-ai"
+    environment: "production"
+
+# Alerting rules (optional — extend with your alertmanager)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# Load alerting rules
+rule_files:
+  - "alerts.yml"
+
+# ─── Scrape Targets ───────────────────────────────────────────
+scrape_configs:
+  # Decision Engine (FastAPI + Prometheus middleware)
+  - job_name: "decision-engine"
+    static_configs:
+      - targets: ["decision-engine:8000"]
+    metrics_path: "/metrics"
+    scrape_interval: 10s
+
+  # Ingestion Service (Go/Gin with promhttp)
+  - job_name: "ingestion-service"
+    static_configs:
+      - targets: ["ingestion-service:8080"]
+    metrics_path: "/metrics"
+    scrape_interval: 10s
+
+  # Notification Service (Python)
+  - job_name: "notification-service"
+    static_configs:
+      - targets: ["notification-service:8001"]
+    metrics_path: "/metrics"
+    scrape_interval: 15s
+
+  # Prometheus self-monitoring
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Kafka (via JMX exporter or kafka-exporter)
+  - job_name: "kafka"
+    static_configs:
+      - targets: ["kafka-exporter:9308"]
+
+  # PostgreSQL (via postgres_exporter)
+  - job_name: "postgres"
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+
+  # Redis (via redis_exporter)
+  - job_name: "redis"
+    static_configs:
+      - targets: ["redis-exporter:9121"]

@@ -1,72 +1,135 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { AlertCircle, Check, Loader2, Award, ShieldAlert, Cpu } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { AlertCircle, Check, Loader2, Award, ShieldAlert, Cpu, RefreshCw, Zap } from 'lucide-react';
 import CostBreakdown from '@/components/crisis/CostBreakdown';
+import { crisisApi, statsApi, type CrisisEvent, type Decision, type Stats } from '@/lib/api';
 
 export default function DashboardPage() {
-  const [decisions, setDecisions] = useState([
-    {
-      pnr: "PNR100",
-      name: "Ahmet Yılmaz",
-      ticketClass: "FIRST CLASS",
-      action: "Yeniden Rezervasyon",
-      newFlight: "TK1983 (IST - LHR) - 3 saat sonra",
-      compensation: 400,
-      hotel: "VIP Lounge - Radisson Blu 5*",
-      confidence: 99,
-      reasoning: "First class yolcu için en yüksek sadakat skoru gözetildi. 3 saatlik gecikmeyle TK1983 seferine atandı, Radisson Blu VIP konaklama atandı."
-    },
-    {
-      pnr: "PNR101",
-      name: "Jean Smith",
-      ticketClass: "ECONOMY CLASS",
-      action: "Yeniden Rezervasyon",
-      newFlight: "TK1985 (IST - LHR) - 9 saat sonra",
-      compensation: 400,
-      hotel: "Airport Hotel (4*) - Gecelik",
-      confidence: 95,
-      reasoning: "Ekonomi sınıfı yolcu. TK1983 uçağında boş koltuk kalmadığı için gecikmeli olan TK1985 uçağına atandı. Gece kalışı nedeniyle 4 yıldızlı havalimanı oteli tahsis edildi."
-    },
-    {
-      pnr: "PNR102",
-      name: "Ayşe Kaya",
-      ticketClass: "BUSINESS CLASS",
-      action: "Yeniden Rezervasyon",
-      newFlight: "TK1983 (IST - LHR) - 3 saat sonra",
-      compensation: 400,
-      hotel: "Radisson Blu (5*) - Gecelik",
-      confidence: 98,
-      reasoning: "Business yolcu önceliği. İlk alternatif olan TK1983 uçağına business koltuk ataması yapıldı, 5 yıldızlı otel tahsis edildi."
-    }
-  ]);
-
-  const [counts, setCounts] = useState({ crises: 1, pax: 25, resolved: 142, speed: 1.4 });
+  // ── State ──────────────────────────────────────────────
+  const [decisions, setDecisions] = useState<Decision[]>([]);
+  const [activeCrises, setActiveCrises] = useState<CrisisEvent[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isApproving, setIsApproving] = useState(false);
+  const [approvingCrisisId, setApprovingCrisisId] = useState<number | null>(null);
   const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [apiError, setApiError] = useState<string | null>(null);
 
-  const handleApprove = (pnr: string) => {
-    setDecisions(prev => prev.filter(d => d.pnr !== pnr));
-    addToastAction(`Yolcu ${pnr} kararı onaylandı.`);
+  // ── Trigger Crisis Form ────────────────────────────────
+  const [showTrigger, setShowTrigger] = useState(false);
+  const [triggerForm, setTriggerForm] = useState({
+    flight_number: 'TK1981',
+    crisis_type: 'CANCELLATION',
+    reason: 'Severe weather conditions at LHR',
+    severity: 'HIGH',
+  });
+  const [isTriggering, setIsTriggering] = useState(false);
+
+  // ── Data Fetching ──────────────────────────────────────
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      const [statsData, crisesData] = await Promise.all([
+        statsApi.get(),
+        crisisApi.listActive(),
+      ]);
+      setStats(statsData);
+      setActiveCrises(crisesData);
+      setApiError(null);
+
+      // Load decisions from the first active crisis
+      if (crisesData.length > 0) {
+        const dec = await crisisApi.getDecisions(crisesData[0].id);
+        setDecisions(dec.filter((d) => d.status === 'PENDING'));
+      } else {
+        setDecisions([]);
+      }
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : 'API bağlantısı kurulamadı');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+    const interval = setInterval(fetchDashboardData, 15000); // Refresh every 15s
+    return () => clearInterval(interval);
+  }, [fetchDashboardData]);
+
+  // ── Handlers ───────────────────────────────────────────
+  const handleApprove = async (decision: Decision) => {
+    try {
+      await crisisApi.approve(decision.crisis_id);
+      setDecisions((prev) => prev.filter((d) => d.id !== decision.id));
+      showToastMsg(`Karar #${decision.id} onaylandı ✓`);
+      fetchDashboardData();
+    } catch (e) {
+      showToastMsg(`Hata: ${e instanceof Error ? e.message : 'Bilinmeyen hata'}`);
+    }
   };
 
-  const handleApproveAll = () => {
+  const handleApproveAll = async () => {
+    if (activeCrises.length === 0) return;
     setIsApproving(true);
-    setTimeout(() => {
+    setApprovingCrisisId(activeCrises[0].id);
+    try {
+      await crisisApi.approve(activeCrises[0].id);
       setDecisions([]);
+      showToastMsg('Tüm kararlar onaylandı! SMS ve WhatsApp bildirimleri gönderildi. ✈️');
+      fetchDashboardData();
+    } catch (e) {
+      showToastMsg(`Onay hatası: ${e instanceof Error ? e.message : 'Bilinmeyen hata'}`);
+    } finally {
       setIsApproving(false);
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 5000);
-    }, 1500);
+      setApprovingCrisisId(null);
+    }
   };
 
-  const addToastAction = (msg: string) => {
-    alert(`JetNexus HUD: ${msg}`);
+  const handleTriggerCrisis = async () => {
+    setIsTriggering(true);
+    try {
+      const crisis = await crisisApi.trigger(triggerForm);
+      showToastMsg(`Kriz oluşturuldu! #${crisis.id} — AI karar motoru çalışıyor...`);
+      setShowTrigger(false);
+      setTimeout(fetchDashboardData, 3000); // Wait for AI to process
+    } catch (e) {
+      showToastMsg(`Kriz tetiklenemedi: ${e instanceof Error ? e.message : 'Bilinmeyen hata'}`);
+    } finally {
+      setIsTriggering(false);
+    }
   };
+
+  const showToastMsg = (msg: string) => {
+    setToastMessage(msg);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 6000);
+  };
+
+  // ── Mock decisions for offline/dev display ─────────────
+  const displayDecisions = decisions.length > 0 ? decisions : [];
 
   return (
     <div className="flex flex-col gap-12 w-full select-none text-white">
       
+      {/* 🚨 API Error Banner */}
+      {apiError && (
+        <div className="bg-red-950/40 border border-red-500/40 rounded-xl p-4 flex items-center gap-3">
+          <AlertCircle size={16} className="text-red-400 shrink-0" />
+          <div className="flex-1">
+            <p className="text-xs font-bold text-red-300">Backend bağlantısı kurulamadı</p>
+            <p className="text-xs text-red-400/70 mt-0.5">{apiError}</p>
+          </div>
+          <button
+            onClick={fetchDashboardData}
+            className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 shrink-0"
+          >
+            <RefreshCw size={12} /> Tekrar Dene
+          </button>
+        </div>
+      )}
+
       {/* 🚀 Hero Section */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
         <div className="lg:col-span-7 flex flex-col gap-6">
@@ -85,8 +148,10 @@ export default function DashboardPage() {
                 </span>
               </div>
               <div>
-                <p className="text-[10px] font-bold text-surface-bright/50 uppercase tracking-wider">Sistem Optimizasyonu</p>
-                <p className="text-lg font-display font-bold text-surface-bright">99.9% Optimal</p>
+                <p className="text-[10px] font-bold text-surface-bright/50 uppercase tracking-wider">Toplam Çözüldü</p>
+                <p className="text-lg font-display font-bold text-surface-bright">
+                  {stats ? stats.crises.resolved : '—'}
+                </p>
               </div>
             </div>
 
@@ -96,10 +161,25 @@ export default function DashboardPage() {
                 <span className="material-symbols-outlined text-primary-fixed text-2xl">insights</span>
               </div>
               <div>
-                <p className="text-[10px] font-bold text-surface-bright/50 uppercase tracking-wider">Aktif Kriz Akışı</p>
-                <p className="text-lg font-display font-bold text-surface-bright">TK1981 İptal</p>
+                <p className="text-[10px] font-bold text-surface-bright/50 uppercase tracking-wider">Aktif Krizler</p>
+                <p className="text-lg font-display font-bold text-surface-bright">
+                  {stats ? (
+                    <span className={stats.crises.active > 0 ? 'text-red-400' : 'text-emerald-400'}>
+                      {stats.crises.active} {stats.crises.active > 0 ? '🔴' : '✅'}
+                    </span>
+                  ) : '—'}
+                </p>
               </div>
             </div>
+
+            {/* Trigger Crisis Button */}
+            <button
+              onClick={() => setShowTrigger(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-rose-600/80 hover:bg-rose-500 text-white text-sm font-bold rounded-xl border border-rose-500/50 transition-all shadow-lg shadow-rose-500/20"
+            >
+              <Zap size={14} />
+              Kriz Tetikle
+            </button>
           </div>
         </div>
 
@@ -114,9 +194,15 @@ export default function DashboardPage() {
           <div className="relative z-10 glass-card p-6 rounded-xl flex flex-col items-center justify-center backdrop-blur-md bg-[#001229]/40 border-white/5 text-center">
             <span className="material-symbols-outlined text-primary-fixed text-4xl mb-2 animate-bounce">radar</span>
             <p className="text-[11px] font-bold text-primary-fixed tracking-widest uppercase">Gerçek Zamanlı Telemetri Aktif</p>
+            {stats && (
+              <p className="text-[10px] text-primary-fixed/70 mt-2">
+                {stats.passengers} yolcu · {stats.flights} sefer · {stats.decisions} karar
+              </p>
+            )}
           </div>
         </div>
       </section>
+
 
       <div className="w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent my-2"></div>
 
@@ -265,7 +351,7 @@ export default function DashboardPage() {
             <p className="text-xs text-surface-bright/60 mt-1">Yapay zeka ve matematiksel model tarafından üretilen kararları onaylayın.</p>
           </div>
           
-          {decisions.length > 0 && (
+          {displayDecisions.length > 0 && (
             <button 
               className="bg-primary-container hover:bg-accent-red-hover text-on-primary font-sans text-xs px-6 py-2.5 rounded-full transition-all shadow-lg shadow-primary-container/20 flex items-center gap-2 font-bold"
               onClick={handleApproveAll}
@@ -279,31 +365,50 @@ export default function DashboardPage() {
               ) : (
                 <>
                   <Check size={13} />
-                  <span>Tüm Kararları Onayla & SMS Bildirilerini Gönder</span>
+                  <span>Tüm Kararları Onayla & SMS Gönder</span>
                 </>
               )}
             </button>
           )}
         </div>
 
-        {decisions.length === 0 ? (
+        {isLoading ? (
+          <div className="glass-card rounded-2xl p-12 text-center flex flex-col items-center justify-center gap-4">
+            <Loader2 size={32} className="text-primary-fixed animate-spin" />
+            <p className="text-xs text-surface-bright/60">Backend'den kararlar yükleniyor...</p>
+          </div>
+        ) : displayDecisions.length === 0 ? (
           <div className="glass-card rounded-2xl p-12 text-center flex flex-col items-center justify-center gap-4 border border-emerald-500/20 bg-emerald-950/10">
             <span className="material-symbols-outlined text-emerald-400 text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>task_alt</span>
-            <h3 className="text-base font-bold text-emerald-400 tracking-wide uppercase">Tüm Kararlar Başarıyla Onaylandı!</h3>
-            <p className="text-xs text-surface-bright/60 max-w-md leading-relaxed">Aktif krizdeki tüm etkilenen yolcular başarıyla alternatif uçuşlara yerleştirildi ve Twilio bildirimleri gönderildi.</p>
+            <h3 className="text-base font-bold text-emerald-400 tracking-wide uppercase">
+              {activeCrises.length === 0 ? 'Aktif Kriz Yok' : 'Tüm Kararlar Onaylandı!'}
+            </h3>
+            <p className="text-xs text-surface-bright/60 max-w-md leading-relaxed">
+              {activeCrises.length === 0
+                ? 'Şu anda aktif kriz bulunmuyor. "Kriz Tetikle" butonu ile senaryo başlatabilirsiniz.'
+                : 'Tüm etkilenen yolcular başarıyla alternatif uçuşlara yerleştirildi ve Twilio bildirimleri gönderildi.'}
+            </p>
+            <button
+              onClick={() => setShowTrigger(true)}
+              className="mt-2 flex items-center gap-2 px-5 py-2 bg-rose-600/80 hover:bg-rose-500 text-white text-xs font-bold rounded-xl border border-rose-500/50 transition-all"
+            >
+              <Zap size={13} /> Kriz Tetikle
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {decisions.map((dec) => (
-              <div key={dec.pnr} className="glass-card rounded-2xl p-5 flex flex-col justify-between gap-4 hover:border-white/10 transition-all">
+            {displayDecisions.map((dec) => (
+              <div key={dec.id} className="glass-card rounded-2xl p-5 flex flex-col justify-between gap-4 hover:border-white/10 transition-all">
                 <div className="flex justify-between items-start">
                   <div>
                     <span className="px-2 py-0.5 bg-white/5 text-primary-fixed text-[10px] font-mono rounded border border-white/10 mr-2">
-                      {dec.pnr}
+                      #{dec.id}
                     </span>
-                    <strong className="text-surface-bright font-bold text-xs">{dec.name}</strong>
+                    <span className="text-surface-bright font-bold text-xs">Karar {dec.action}</span>
                   </div>
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold border border-emerald-500/30">%{dec.confidence} Güven</span>
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold border border-emerald-500/30">
+                    %{Math.round((dec.agent_confidence ?? 0) * 100)} Güven
+                  </span>
                 </div>
 
                 <div className="flex flex-col gap-2 bg-black/25 p-3 rounded-xl border border-white/5 font-sans text-xs">
@@ -312,33 +417,37 @@ export default function DashboardPage() {
                     <span className="text-primary-fixed font-bold">{dec.action}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-surface-bright/40 uppercase text-[9px] font-bold">Yeni Uçuş:</span>
-                    <span className="text-surface-bright font-mono font-medium">{dec.newFlight}</span>
+                    <span className="text-surface-bright/40 uppercase text-[9px] font-bold">Yeni Uçuş ID:</span>
+                    <span className="text-surface-bright font-mono font-medium">
+                      {dec.new_flight_id ? `#${dec.new_flight_id}` : '—'}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-surface-bright/40 uppercase text-[9px] font-bold">Tazminat:</span>
-                    <span className="text-emerald-400 font-mono font-bold">{dec.compensation} EUR</span>
+                    <span className="text-emerald-400 font-mono font-bold">{dec.compensation_amount_eur} EUR</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-surface-bright/40 uppercase text-[9px] font-bold">Otel:</span>
-                    <span className="text-surface-bright font-semibold">{dec.hotel}</span>
+                    <span className="text-surface-bright font-semibold">{dec.hotel_name ?? '—'}</span>
                   </div>
                 </div>
 
-                <div className="text-[11px] text-surface-bright/70 italic bg-white/5 p-2.5 rounded border border-white/5 leading-relaxed">
-                  <strong>Ajan Gerekçesi:</strong> {dec.reasoning}
-                </div>
+                {dec.agent_reasoning && (
+                  <div className="text-[11px] text-surface-bright/70 italic bg-white/5 p-2.5 rounded border border-white/5 leading-relaxed line-clamp-3">
+                    <strong>Ajan Gerekçesi:</strong> {dec.agent_reasoning}
+                  </div>
+                )}
 
                 <div className="flex gap-2 justify-end mt-1">
                   <button 
-                    className="px-3.5 py-1.5 border border-white/10 hover:border-primary-container hover:text-primary-container transition-colors text-[10px] font-bold rounded-full text-white/60"
-                    onClick={() => handleApprove(dec.pnr)}
+                    className="px-3.5 py-1.5 border border-white/10 hover:border-red-500/50 hover:text-red-400 transition-colors text-[10px] font-bold rounded-full text-white/60"
+                    onClick={() => setDecisions(prev => prev.filter(d => d.id !== dec.id))}
                   >
                     Reddet
                   </button>
                   <button 
                     className="px-3.5 py-1.5 bg-primary-container hover:bg-accent-red-hover text-on-primary transition-colors text-[10px] font-bold rounded-full"
-                    onClick={() => handleApprove(dec.pnr)}
+                    onClick={() => handleApprove(dec)}
                   >
                     Tekil Onay
                   </button>
@@ -349,11 +458,88 @@ export default function DashboardPage() {
         )}
       </section>
 
-      {/* 🔔 Success Toast */}
+      {/* 🚨 Trigger Crisis Modal */}
+      {showTrigger && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-slate-700/60 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <h3 className="text-base font-bold text-white mb-1 flex items-center gap-2">
+              <Zap size={16} className="text-rose-400" /> Kriz Senaryosu Tetikle
+            </h3>
+            <p className="text-xs text-slate-400 mb-5">
+              AI karar motoru gerçek zamanlı analiz yaparak yolcuları yeniden atar.
+            </p>
+            
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Uçuş No</label>
+                <input
+                  className="mt-1 w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
+                  value={triggerForm.flight_number}
+                  onChange={e => setTriggerForm(f => ({ ...f, flight_number: e.target.value }))}
+                  placeholder="TK1981"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Kriz Tipi</label>
+                <select
+                  className="mt-1 w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
+                  value={triggerForm.crisis_type}
+                  onChange={e => setTriggerForm(f => ({ ...f, crisis_type: e.target.value }))}
+                >
+                  <option value="CANCELLATION">İptal (CANCELLATION)</option>
+                  <option value="DELAY">Gecikme (DELAY)</option>
+                  <option value="DIVERSION">Yön Değişikliği (DIVERSION)</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Sebep</label>
+                <input
+                  className="mt-1 w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
+                  value={triggerForm.reason}
+                  onChange={e => setTriggerForm(f => ({ ...f, reason: e.target.value }))}
+                  placeholder="Severe weather conditions at LHR"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Şiddet</label>
+                <select
+                  className="mt-1 w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
+                  value={triggerForm.severity}
+                  onChange={e => setTriggerForm(f => ({ ...f, severity: e.target.value }))}
+                >
+                  <option value="LOW">Düşük</option>
+                  <option value="MEDIUM">Orta</option>
+                  <option value="HIGH">Yüksek</option>
+                  <option value="CRITICAL">Kritik</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowTrigger(false)}
+                className="flex-1 px-4 py-2 text-xs font-bold text-slate-400 border border-slate-600 rounded-xl hover:bg-slate-800 transition-all"
+              >
+                İptal
+              </button>
+              <button
+                onClick={handleTriggerCrisis}
+                disabled={isTriggering}
+                className="flex-1 px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {isTriggering ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />}
+                {isTriggering ? 'Tetikleniyor...' : 'Krizi Başlat'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🔔 Toast Notification */}
       {showToast && (
-        <div className="fixed bottom-6 right-6 z-50 bg-emerald-950/95 border border-emerald-500/50 text-emerald-300 p-4 rounded-xl shadow-2xl flex items-center gap-3 animate-slide-in">
+        <div className="fixed bottom-6 right-6 z-50 bg-emerald-950/95 border border-emerald-500/50 text-emerald-300 p-4 rounded-xl shadow-2xl flex items-center gap-3 animate-slide-in max-w-sm">
           <span className="material-symbols-outlined text-emerald-400">check_circle</span>
-          <p className="text-xs font-bold">AeroSys AI: Tüm yolcuların kurtarma kararları onaylandı ve SMS/WhatsApp bildirimleri kuyruğa alındı!</p>
+          <p className="text-xs font-bold">{toastMessage}</p>
         </div>
       )}
 
@@ -365,7 +551,14 @@ export default function DashboardPage() {
           from { transform: translateY(100px); opacity: 0; }
           to { transform: translateY(0); opacity: 1; }
         }
+        .line-clamp-3 {
+          display: -webkit-box;
+          -webkit-line-clamp: 3;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
       `}} />
     </div>
   );
 }
+
