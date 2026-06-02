@@ -4,6 +4,10 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.routes.hub_control import router as hub_router
+from app.api.routes.iocc import router as iocc_router
+from app.api.routes.pcc import router as pcc_router
+from app.api.routes.revenue import router as revenue_router
 from app.config import settings
 from app.db.database import Base, engine, get_db
 from app.db.models import AuditLogDB, CrisisDB, DecisionDB, FlightDB, PassengerDB
@@ -25,6 +29,12 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# ── Layer 4 Routers ───────────────────────────────────────
+app.include_router(pcc_router)
+app.include_router(hub_router)
+app.include_router(iocc_router)
+app.include_router(revenue_router)
 
 # ── CORS ──────────────────────────────────────────────────
 app.add_middleware(
