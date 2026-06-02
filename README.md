@@ -1,328 +1,425 @@
-# ✈️ JetNexus AI
+# JetNexus AI
 
-### Otonom Havacılık Kriz Yönetim Sistemi
+### Otonom Havacılık Operasyon ve Kriz Yönetim Platformu
 
 [![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://golang.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Next.js](https://img.shields.io/badge/Next.js-15+-000000?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
-[![License](https://img.shields.io/badge/Lisans-MIT-f59e0b?style=for-the-badge)](LICENSE)
+[![License](https://img.shields.io/badge/License-MIT-f59e0b?style=for-the-badge)](LICENSE)
 
-> **Çok Ajanlı AI · MILP Optimizasyonu · EU261 Uyumluluğu · Gerçek Zamanlı İletişim**
->
-> Uçuş krizlerini saniyeler içinde çözen, yolcu haklarını otomatik koruyan otonom havacılık zekâ platformu.
+> Uçuş krizlerini otomatik çözen, yolcu haklarını EU261 kapsamında koruyan ve operasyon merkezlerini tek panelden yöneten çok katmanlı havacılık zekâ platformu.
 
 ---
 
 ## İçindekiler
 
-- [Özellikler](#-özellikler)
-- [Sistem Mimarisi](#-sistem-mimarisi)
-- [Hızlı Başlangıç](#-hızlı-başlangıç)
-- [🔑 .env Kurulum Rehberi](#-env-kurulum-rehberi)
-- [Bağımsız Servis Başlatma](#-bağımsız-servis-başlatma)
-- [Proje Yapısı](#-proje-yapısı)
-- [AI Agent Mimarisi](#-ai-agent-mimarisi)
-- [EU261 Tazminat Tablosu](#-eu261-tazminat-tablosu)
-- [Geliştirme Komutları](#-geliştirme-komutları)
-- [Lisans](#-lisans)
+- [Genel Bakış](#genel-bakış)
+- [Sistem Mimarisi](#sistem-mimarisi)
+- [Servisler](#servisler)
+- [Operasyon Katmanları](#operasyon-katmanları)
+- [AI Agent Mimarisi](#ai-agent-mimarisi)
+- [Kural Motoru](#kural-motoru)
+- [PSS Adaptörleri ve Dış Bağlantılar](#pss-adaptörleri-ve-dış-bağlantılar)
+- [EU261 Tazminat Motoru](#eu261-tazminat-motoru)
+- [Hızlı Başlangıç](#hızlı-başlangıç)
+- [Bağımsız Servis Başlatma](#bağımsız-servis-başlatma)
+- [Proje Yapısı](#proje-yapısı)
+- [API Referansı](#api-referansı)
+- [Geliştirme Komutları](#geliştirme-komutları)
 
 ---
 
-## ✨ Özellikler
+## Genel Bakış
 
-| Özellik | Açıklama |
+JetNexus AI, havayolu operasyon merkezlerinin (IOCC, HUB Control, PCC, Revenue) gerçek zamanlı olarak kullandığı bir karar destek ve otomasyon platformudur. Uçuş iptali, gecikmesi veya bağlantı kopması gibi irrops (irregular operations) senaryolarında şu adımları otomatik olarak yürütür:
+
+1. **Veri Alımı** — PSS sistemlerinden (Amadeus, Sabre, SITA) ve dış kaynaklardan (hava durumu, ATC, AODB, GDS) gerçek zamanlı veri çeker.
+2. **Kriz Tespiti** — IRROPS kuralları ile gecikme/iptal krizini sınıflandırır.
+3. **Yeniden Rezervasyon** — MILP optimizasyonu ile en düşük maliyetli yeniden yerleşim planını üretir.
+4. **Tazminat Hesabı** — EU261 regülasyonuna göre her yolcu için otomatik tazminat belirler.
+5. **Yolcu İletişimi** — Türkçe/İngilizce SMS ve WhatsApp bildirimi gönderir.
+6. **Denetim** — Tüm kararları yasal uyumluluk için audit log'a yazar.
+
+---
+
+## Sistem Mimarisi
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                        Dış Sistemler                             │
+│   Amadeus · Sabre · SITA · OpenAI · Weather API · ATC · GDS     │
+└──────────────────────────┬───────────────────────────────────────┘
+                           │
+                           ▼
+          ┌────────────────────────────────┐
+          │     Ingestion Service (Go)      │
+          │  PSS Adapters · Normalizer      │
+          │  Webhook Handler · Rate Limiter │
+          └────────────┬───────────────────┘
+                       │  Apache Kafka
+          ┌────────────▼───────────────────┐
+          │    Decision Engine (FastAPI)    │
+          │  IRROPS Engine · MCT/ACT Rules  │
+          │  MILP Optimizer · EU261 Engine  │
+          │  AI Agents · PII Guard          │
+          └──┬──────────┬──────────┬────────┘
+             │          │          │
+    ┌─────────▼──┐ ┌────▼────┐ ┌──▼─────────────────┐
+    │ PostgreSQL  │ │  Redis  │ │ Notification Service│
+    │  (Kalıcı)  │ │ (Cache) │ │  SMS · WhatsApp     │
+    └────────────┘ └─────────┘ └────────────────────┘
+                                        │
+          ┌─────────────────────────────▼────────────────────┐
+          │              Frontend (Next.js 15)                │
+          │  Dashboard · IOCC · HUB Control · PCC · Revenue  │
+          └──────────────────────────────────────────────────┘
+```
+
+---
+
+## Servisler
+
+### Decision Engine — `services/decision-engine` (Python/FastAPI)
+
+Ana iş mantığını barındıran servis. Port `8000`'de çalışır.
+
+| Modül | Açıklama |
 |---|---|
-| 🤖 **Çok Ajanlı Karar Motoru** | CrewAI tabanlı ajan orkestrasyonu ile saniyeler içinde aksiyon |
-| 📊 **MILP Optimizasyonu** | PuLP/CBC ile koltuk ve rezervasyon maliyeti minimizasyonu |
-| ⚖️ **EU261 Uyumluluğu** | Mesafe ve gecikme sınıfına göre otomatik tazminat hesaplama |
-| 📡 **Gerçek Zamanlı Bildirim** | SMS/WhatsApp üzerinden Türkçe/İngilizce yolcu iletişimi |
-| 🖥️ **Komuta Merkezi Dashboard** | Next.js 15 tabanlı dark-mode HUD arayüzü |
-| 🔒 **Güvenlik Katmanı** | AES-256 şifreleme, PII maskeleme, prompt injection koruması |
-| 📈 **Sağlık İzleme** | Prometheus + Grafana ile canlı servis metrikleri |
+| `app/agents/` | CrewAI tabanlı çok ajanlı orkestrasyon |
+| `app/optimization/` | PuLP/CBC ile MILP yeniden rezervasyon optimizasyonu |
+| `app/regulations/` | EU261 tazminat motoru ve validator |
+| `app/rules/` | MCT, ACT ve IRROPS karar kuralları |
+| `app/guardrails/` | PII maskeleme, prompt injection koruması, rate limiting |
+| `app/api/routes/` | REST API uç noktaları (crisis, flights, hub, iocc, pcc, revenue) |
+| `app/db/` | SQLAlchemy async ORM, veritabanı modelleri, seed verisi |
+
+### Ingestion Service — `services/ingestion-service` (Go)
+
+Dış sistemlerden veri alan ve Kafka'ya ileten kapı servisi. Port `8002`'de çalışır.
+
+| Modül | Açıklama |
+|---|---|
+| `internal/adapters/pss/` | Amadeus, Sabre, SITA, Custom PSS adaptörleri |
+| `internal/adapters/normalizer.go` | Farklı PSS formatlarını ortak veri modeline dönüştürür |
+| `internal/connectors/` | Hava durumu, ATC, AODB, GDS dış bağlantı modülleri |
+| `internal/handlers/` | HTTP webhook handler'ları (uçuş olayları, PSS olayları) |
+| `internal/middleware/` | API key kimlik doğrulama, rate limiting |
+| `internal/queue/` | Kafka producer |
+
+### Notification Service — `services/notification-service` (Python)
+
+Kafka'yı dinleyen ve yolculara bildirim gönderen servis. Port `8001`'de çalışır.
+
+| Kanal | Açıklama |
+|---|---|
+| `channels/sms.py` | Twilio SMS entegrasyonu |
+| `channels/whatsapp.py` | Twilio WhatsApp entegrasyonu |
+| `channels/email.py` | E-posta kanalı |
+| `templates/` | TR/EN iptal ve yeniden rezervasyon şablonları |
+
+### Frontend — `frontend` (Next.js 15 + TypeScript)
+
+Operasyon merkezleri için dark-mode HUD dashboard. Port `3000`'de çalışır.
 
 ---
 
-## 🏗️ Sistem Mimarisi
+## Operasyon Katmanları
 
-```
-                   ┌──────────────────────────────┐
-                   │         Dış Sistemler         │
-                   │  Amadeus · Sabre · OpenAI     │
-                   └───────────┬──────────────────┘
-                               │
-         ┌─────────────────────┼────────────────────┐
-         ▼                     ▼                    ▼
-┌─────────────────┐  ┌──────────────────┐  ┌──────────────────┐
-│  Ingestion      │  │  Decision        │  │  Notification    │
-│  Service (Go)   │  │  Engine (FastAPI) │  │  Service (Python)│
-│  Webhook · API  │  │  MILP · EU261    │  │  SMS · WhatsApp  │
-└────────┬────────┘  └────────┬─────────┘  └──────────────────┘
-         │                    │
-         └──────────┬─────────┘
-                    ▼
-         ┌─────────────────────┐
-         │     Apache Kafka    │
-         └──────┬──────────────┘
-                │
-     ┌──────────┼──────────┐
-     ▼          ▼          ▼
-┌─────────┐ ┌───────┐ ┌──────────┐
-│Postgres │ │ Redis │ │ Next.js  │
-│  (Core) │ │(Cache)│ │  Panel   │
-└─────────┘ └───────┘ └──────────┘
-```
+JetNexus AI dört ayrı operasyon ekranı sunar; her biri havayolunun farklı bir departmanına karşılık gelir:
+
+### IOCC — Integrated Operations Control Center (`/iocc`)
+
+Havayolunun tüm operasyonel kontrolünü yöneten merkez ekran. Aktif krizleri listeler, IRROPS kararlarını manuel olarak onaylar/reddeder ve uçuş durumunu gerçek zamanlı izler.
+
+**API:** `GET /api/v1/iocc/crises/active`, `POST /api/v1/iocc/decisions/{id}/approve`
+
+### HUB Control — Bağlantı Yönetimi (`/hub-control`)
+
+Transit yolcuların bağlantı riskini gerçek zamanlı takip eder. MCT (Minimum Connection Time) ve ACT (Actual Connection Time) hesaplamalarıyla riskli bağlantıları öne çıkarır, çıkış kapısı değişikliklerini yönetir.
+
+**API:** `GET /api/v1/hub/connections/at-risk`, `POST /api/v1/hub/connections/update`
+
+### PCC — Passenger Care Center (`/pcc`)
+
+Risk altındaki yolcuları listeler, yolcu başına karar önerir ve kurtarma aksiyonlarını başlatır. VIP yolcular için öncelikli görünüm sunar.
+
+**API:** `GET /api/v1/pcc/passengers/at-risk`, `POST /api/v1/pcc/passengers/{pnr}/recover`
+
+### Revenue Management (`/revenue`)
+
+Kriz kararlarının maliyet etkisini özetler. Tazminat tutarlarını, yeniden rezervasyon maliyetlerini ve EU261 yükümlülüklerini kıyaslar.
+
+**API:** `GET /api/v1/revenue/impact/summary`, `GET /api/v1/revenue/impact/by-crisis`
 
 ---
 
-## 🚀 Hızlı Başlangıç
-
-### Gereksinimler
-
-- 🐍 Python 3.12+
-- 🟢 Node.js 20+
-- 🐹 Go 1.22+
-- 🐳 Docker & Docker Compose
-- 🔑 OpenAI API Key *(veya yerel Ollama)*
-
-### Kurulum
-
-```bash
-# 1. Repoyu klonla
-git clone https://github.com/themaden/Terminal.git
-cd jetnexus-ai
-
-# 2. Ortam değişkenlerini ayarla
-cp .env.example .env
-# .env dosyasını düzenle: OPENAI_API_KEY, DB şifreleri vb.
-
-# 3. Tüm servisleri Docker ile başlat
-make dev
-
-# 4. Örnek veri yükle
-make seed
-
-# 5. Kriz simülasyonu çalıştır
-make simulate
-```
-
-> 🌐 **Dashboard:** `http://localhost:3000`
->
-> 📡 **API Docs:** `http://localhost:8000/docs`
-
----
-
-## 🔑 .env Kurulum Rehberi
-
-> Projeyi çalıştırmadan önce proje klasöründe bir `.env` dosyası oluşturman gerekiyor.
-> Bu dosya **asla GitHub'a yüklenmez** — tamamen gizlidir.
-
-### Adım 1 — .env Dosyasını Oluştur
-
-```bash
-# Proje klasöründe bu komutu çalıştır:
-copy NUL .env       # Windows
-# veya
-touch .env          # Mac/Linux
-```
-
-### Adım 2 — Aşağıdaki Değerleri Doldur
-
-`.env` dosyasını bir metin editörüyle aç ve şu içeriği yapıştır:
-
-```env
-# ─────────────────────────────────────────────────
-# JetNexus AI — .env (Bu dosyayı GitHub'a yükleme!)
-# ─────────────────────────────────────────────────
-
-# ── VERİTABANI (PostgreSQL) ───────────────────────
-POSTGRES_DB=jetnexus
-POSTGRES_USER=jetnexus
-POSTGRES_PASSWORD=buraya_guclu_bir_sifre_yaz
-DATABASE_URL=postgresql+asyncpg://jetnexus:buraya_guclu_bir_sifre_yaz@localhost:5432/jetnexus
-
-# ── REDIS ────────────────────────────────────────
-REDIS_URL=redis://localhost:6379/0
-
-# ── KAFKA ────────────────────────────────────────
-KAFKA_BOOTSTRAP_SERVERS=localhost:9092
-
-# ── OPENAI API (Zorunlu - AI kararları için) ─────
-# 👉 https://platform.openai.com/api-keys adresinden al
-OPENAI_API_KEY=sk-proj-...buraya_kendi_openai_keyini_yaz...
-LLM_MODEL=gpt-4o
-
-# ── TWILIO SMS/WhatsApp (İsteğe bağlı) ───────────
-# 👉 https://console.twilio.com adresinden al
-TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxx
-TWILIO_FROM_NUMBER=+1XXXXXXXXXX
-TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
-
-# ── GÜVENLİK ANAHTARLARI (Zorunlu) ──────────────
-# Aşağıdaki komutlarla üret:
-# python -c "import secrets; print(secrets.token_hex(32))"
-SECRET_KEY=buraya_uret
-# python -c "import secrets; print(secrets.token_hex(16))"
-AES_ENCRYPTION_KEY=buraya_uret_16_byte_hex
-# python -c "import secrets; print(secrets.token_urlsafe(32))"
-API_KEY=buraya_uret
-
-# ── UYGULAMA ─────────────────────────────────────
-APP_ENV=development
-APP_DEBUG=true
-LOG_LEVEL=INFO
-```
-
-### Hangi Değerler Zorunlu?
-
-| Değişken | Zorunlu mu? | Nereden Alınır? | Açıklama |
-|---|:---:|---|---|
-| `POSTGRES_PASSWORD` | ✅ **Evet** | Kendin belirle | En az 12 karakter, güçlü bir şifre |
-| `OPENAI_API_KEY` | ✅ **Evet** | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) | AI karar motoru için gerekli |
-| `SECRET_KEY` | ✅ **Evet** | `python -c "import secrets; print(secrets.token_hex(32))"` | JWT ve session güvenliği |
-| `AES_ENCRYPTION_KEY` | ✅ **Evet** | `python -c "import secrets; print(secrets.token_hex(16))"` | Yolcu verisi şifreleme |
-| `API_KEY` | ✅ **Evet** | `python -c "import secrets; print(secrets.token_urlsafe(32))"` | Servisler arası kimlik doğrulama |
-| `TWILIO_ACCOUNT_SID` | ⚙️ İsteğe bağlı | [console.twilio.com](https://console.twilio.com) | SMS/WhatsApp bildirimi için |
-| `TWILIO_AUTH_TOKEN` | ⚙️ İsteğe bağlı | [console.twilio.com](https://console.twilio.com) | SMS/WhatsApp bildirimi için |
-| `REDIS_URL` | ✅ **Evet** | Docker otomatik başlatır | Cache servisi |
-| `KAFKA_BOOTSTRAP_SERVERS` | ✅ **Evet** | Docker otomatik başlatır | Mesaj kuyruğu |
-
-### Güvenlik Anahtarlarını Hızlıca Üret
-
-```bash
-# SECRET_KEY için:
-python -c "import secrets; print(secrets.token_hex(32))"
-
-# AES_ENCRYPTION_KEY için:
-python -c "import secrets; print(secrets.token_hex(16))"
-
-# API_KEY için:
-python -c "import secrets; print(secrets.token_urlsafe(32))"
-```
-
-> ⚠️ **Önemli:** `.env` dosyasını **hiçbir zaman** GitHub, Discord, Slack veya başka bir yere paylaşma!
-
----
-
-## 🔧 Bağımsız Servis Başlatma
-
-
-**Decision Engine (FastAPI)**
-
-```bash
-cd services/decision-engine
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-```
-
-**Frontend Dashboard (Next.js)**
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-**Ingestion Service (Go)**
-
-```bash
-cd services/ingestion-service
-go mod download
-go run main.go
-```
-
----
-
-## 📁 Proje Yapısı
+## AI Agent Mimarisi
 
 ```
-jetnexus-ai/
-├── services/
-│   ├── decision-engine/        # Python/FastAPI — Ana Karar Motoru
-│   │   ├── app/agents/         # AI Agent koordinasyon katmanı
-│   │   ├── app/optimization/   # MILP solver (PuLP/CBC)
-│   │   ├── app/regulations/    # EU261 hesaplama motoru
-│   │   └── app/guardrails/     # Güvenlik ve PII filtreleri
-│   ├── ingestion-service/      # Go — Webhook & Dış API Alıcısı
-│   └── notification-service/   # Python — SMS/WhatsApp Bildirim
-├── frontend/                   # Next.js 15 — HUD Dashboard
-│   └── src/
-│       ├── app/                # App Router sayfaları
-│       └── components/         # UI bileşenleri
-├── infra/                      # Docker, K8s, Terraform
-├── scripts/                    # Seed data & otomasyon
-├── monitoring/                 # Prometheus & Grafana
-├── proto/                      # gRPC tanımları
-└── docs/                       # Mimari dokümantasyon
-```
-
----
-
-## 🤖 AI Agent Mimarisi
-
-```
-         ┌──────────────────────────────┐
-         │       CoordinatorAgent        │
-         │  Tüm ajanları orkestre eder   │
-         └────┬──────────┬──────────────┘
-              │          │
-   ┌──────────┘          └──────────────────────┐
-   ▼                     ▼                      ▼
+             ┌──────────────────────────────┐
+             │       CoordinatorAgent        │
+             │  Tüm ajanları sıraya sokar    │
+             └────┬──────────┬──────────────┘
+                  │          │
+       ┌──────────┘          └──────────────────┐
+       ▼                     ▼                  ▼
 ┌───────────┐    ┌───────────────┐    ┌──────────────────┐
 │ Rebooking │    │ Compensation  │    │  Communication   │
 │  Agent    │    │    Agent      │    │     Agent        │
-│ MILP ile  │    │ EU261 hesapla │    │ TR/EN bildirim   │
-│ yeni uçuş │    │               │    │ mesajı oluştur   │
+│ MILP ile  │    │ EU261 tablosu │    │ TR/EN bildirim   │
+│ yeni uçuş │    │ otomatik dol  │    │ metni üretir     │
 └───────────┘    └───────────────┘    └──────────────────┘
                                       ┌──────────────────┐
                                       │ Compliance Agent │
-                                      │ Regülasyon denet │
+                                      │ Yasal denetim    │
                                       └──────────────────┘
 ```
 
 | Agent | Sorumluluk |
 |---|---|
-| 🎯 **Coordinator** | Kriz akışını yönetir, ajan sırasını belirler |
-| ✈️ **Rebooking** | MILP sonuçlarına göre en uygun uçuşa atar |
-| 💰 **Compensation** | EU261 kurallarına göre tazminat hesaplar |
-| 📢 **Communication** | TR/EN yolcu bildirim mesajları oluşturur |
-| ⚖️ **Compliance** | Tüm kararların yasal uyumluluğunu denetler |
+| **Coordinator** | Kriz akışını yönetir, ajan sırasını belirler |
+| **Rebooking** | MILP sonuçlarına göre en uygun uçuşa atar |
+| **Compensation** | EU261 kurallarına göre tazminat belirler |
+| **Communication** | TR/EN yolcu bildirim mesajları üretir |
+| **Compliance** | Tüm kararların yasal uyumluluğunu denetler |
 
 ---
 
-## ⚖️ EU261 Tazminat Tablosu
+## Kural Motoru
 
-| Mesafe | Tazminat | Gecikme Koşulu |
-|:---|:---:|:---|
-| **< 1.500 km** | **€250** | ≥ 3 saat veya iptal |
-| **1.500 – 3.500 km** | **€400** | ≥ 3 saat veya iptal |
-| **> 3.500 km** | **€600** | ≥ 4 saat veya iptal |
-| **> 3.500 km** | **€300** | 3–4 saat arası (%50 indirim) |
+`services/decision-engine/app/rules/` altında üç temel kural modülü bulunur:
 
-> AB üyesi ülkeden kalkan tüm uçuşlar EU261 kapsamındadır.
+### MCT Calculator (`mct.py`)
+
+Minimum Connection Time — havalimanı ve uçuş tipine göre minimum aktarma süresini hesaplar. Yurt içi/yurt dışı, terminal farkı ve özel havalimanı kurallarını destekler.
+
+### ACT Tracker (`act.py`)
+
+Actual Connection Time — anlık uçuş durumuna göre her transit yolcunun gerçek bağlantı süresini hesaplar. MCT ile kıyaslayarak `OK / AT_RISK / CRITICAL / MISSED` durumunu belirler ve `_act_tracker` singleton'ı üzerinden Hub Control'e canlı veri sağlar.
+
+### IRROPS Engine (`irrops_engine.py`)
+
+Irregular Operations karar motoru. Gecikme/iptal/yönlendirme/erken kalkış senaryolarını sınıflandırır; yolcu değerini (VIP, frequent flyer), bağlantı durumunu ve uçuş doluluk oranını birleştirerek otomatik aksiyon önerir.
 
 ---
 
-## ⌨️ Geliştirme Komutları
+## PSS Adaptörleri ve Dış Bağlantılar
+
+### PSS Adaptörleri (`ingestion-service/internal/adapters/pss/`)
+
+Farklı rezervasyon sistemlerinin veri formatlarını `PassengerProfile` ortak modeline dönüştürür:
+
+| Adaptör | Sistem | Format |
+|---|---|---|
+| `amadeus.go` | Amadeus GDS | SOAP/REST |
+| `sabre.go` | Sabre GDS | JSON API |
+| `sita.go` | SITA Horizon | IATA standard |
+| `custom.go` | Özel entegrasyon | Yapılandırılabilir |
+
+`normalizer.go` tüm adaptörlerin çıktısını tutarlı bir `FlightEvent` modeline normalize eder ve Kafka'ya üretir.
+
+### Dış Bağlantılar (`ingestion-service/internal/connectors/`)
+
+| Modül | Veri Kaynağı | Kullanım |
+|---|---|---|
+| `weather.go` | Hava Durumu API | Pist kapanması, fırtına kararları |
+| `atc.go` | ATC (Hava Trafik Kontrolü) | CTOT, slot kısıtlamaları |
+| `aodb.go` | AODB (Airport Ops DB) | Gerçek kapı, pist, çıkış saatleri |
+| `gds.go` | GDS | Dolu uçuş arama, alternatif güzergah |
+
+---
+
+## EU261 Tazminat Motoru
+
+AB Yönetmeliği 261/2004 kapsamında tazminat otomatik hesaplanır:
+
+| Mesafe | Gecikme | Tazminat |
+|:---|:---:|:---:|
+| < 1.500 km | ≥ 3 saat veya iptal | **€250** |
+| 1.500 – 3.500 km | ≥ 3 saat veya iptal | **€400** |
+| > 3.500 km (AB içi) | ≥ 3 saat veya iptal | **€400** |
+| > 3.500 km | ≥ 4 saat veya iptal | **€600** |
+| > 3.500 km | 3–4 saat arası | **€300** (%50 indirim) |
+
+Olağanüstü haller (hava, güvenlik, ATC kısıtlaması) otomatik olarak tespit edilir ve tazminattan muafiyet uygulanır.
+
+---
+
+## Hızlı Başlangıç
+
+### Gereksinimler
+
+- Python 3.12+
+- Node.js 20+
+- Go 1.22+
+- Docker & Docker Compose *(altyapı için)*
+
+### Docker ile Tam Kurulum
 
 ```bash
-make dev          # Tüm servisleri başlat
-make down         # Servisleri durdur
-make test         # Test suite çalıştır
-make seed         # Veritabanına örnek veri yükle
-make simulate     # Kriz simülasyonu tetikle
-make logs         # Tüm servis loglarını takip et
-make clean        # Volume ve container temizliği
+# 1. Repoyu klonla
+git clone https://github.com/themaden/Terminal.git
+cd Terminal
+
+# 2. .env dosyasını oluştur
+cp .env.example .env
+# POSTGRES_PASSWORD, OPENAI_API_KEY ve SECRET_KEY değerlerini doldur
+
+# 3. Tüm servisleri başlat
+docker compose up -d
+
+# 4. Örnek veri yükle (isteğe bağlı)
+docker exec jetnexus-decision-engine python -m app.db.seed
+```
+
+| Servis | URL |
+|---|---|
+| Frontend Dashboard | http://localhost:3000 |
+| API Swagger UI | http://localhost:8000/docs |
+| Decision Engine | http://localhost:8000 |
+| Ingestion Service | http://localhost:8002 |
+
+---
+
+## Bağımsız Servis Başlatma
+
+Docker olmadan da her servis kendi runtime'ıyla çalışır.
+
+### Decision Engine (FastAPI + SQLite fallback)
+
+```bash
+cd services/decision-engine
+pip install -r requirements.txt
+
+# SQLite ile çalıştır (Redis/Kafka olmadan)
+DATABASE_URL=sqlite+aiosqlite:///aeroagent.sqlite3 \
+APP_ENV=development \
+uvicorn app.main:app --reload --port 8000
+```
+
+### Frontend (Next.js)
+
+```bash
+cd frontend
+npm install
+npm run dev
+# http://localhost:3000
+```
+
+### Ingestion Service (Go)
+
+```bash
+cd services/ingestion-service
+go mod download
+go run ./cmd/server/main.go
 ```
 
 ---
 
-## 📄 Lisans
+## Proje Yapısı
 
-Bu proje **MIT Lisansı** altında yayınlanmıştır. Detaylar için [LICENSE](LICENSE) dosyasına bakın.
+```
+jetnexus-ai/
+├── services/
+│   ├── decision-engine/              # Python/FastAPI — Karar Motoru
+│   │   └── app/
+│   │       ├── agents/               # AI ajan koordinasyonu (CrewAI)
+│   │       ├── api/routes/           # REST uç noktaları
+│   │       │   ├── crisis.py         # Kriz yönetimi
+│   │       │   ├── flights.py        # Uçuş verileri
+│   │       │   ├── hub_control.py    # HUB bağlantı kontrolü
+│   │       │   ├── iocc.py           # Operasyon kontrol merkezi
+│   │       │   ├── pcc.py            # Yolcu destek merkezi
+│   │       │   └── revenue.py        # Gelir etki analizi
+│   │       ├── db/                   # ORM modelleri, seed, migrations
+│   │       ├── guardrails/           # PII filtre, prompt guard, rate limit
+│   │       ├── models/               # Pydantic şemaları
+│   │       ├── optimization/         # MILP solver (PuLP/CBC)
+│   │       ├── regulations/          # EU261 motoru ve validator
+│   │       ├── rules/                # MCT, ACT, IRROPS karar kuralları
+│   │       └── services/             # Kriz servis katmanı
+│   │
+│   ├── ingestion-service/            # Go — Veri Alım Servisi
+│   │   └── internal/
+│   │       ├── adapters/pss/         # Amadeus, Sabre, SITA, Custom
+│   │       ├── adapters/normalizer   # PSS → ortak model dönüştürücü
+│   │       ├── connectors/           # Weather, ATC, AODB, GDS
+│   │       ├── handlers/             # Webhook ve PSS event handler'ları
+│   │       ├── middleware/           # Auth, rate limiting
+│   │       ├── models/               # FlightEvent, PassengerProfile
+│   │       └── queue/                # Kafka producer
+│   │
+│   └── notification-service/         # Python — Bildirim Servisi
+│       └── app/
+│           ├── channels/             # SMS, WhatsApp, Email
+│           └── templates/            # TR/EN mesaj şablonları
+│
+├── frontend/                         # Next.js 15 — Operasyon Paneli
+│   └── src/app/
+│       ├── dashboard/                # Ana özet ekranı
+│       ├── crisis/                   # Kriz listesi ve detay
+│       ├── flights/                  # Uçuş takibi
+│       ├── passengers/               # Yolcu yönetimi
+│       ├── optimization/             # MILP sonuç görünümü
+│       ├── hub-control/              # HUB bağlantı ekranı
+│       ├── iocc/                     # IOCC operasyon merkezi
+│       ├── pcc/                      # Yolcu destek ekranı
+│       ├── revenue/                  # Gelir etkisi ekranı
+│       └── audit/                    # Karar denetim logu
+│
+├── infra/
+│   └── docker/postgres-init.sql      # Veritabanı başlangıç şeması
+├── docker-compose.yml
+└── .env.example
+```
 
 ---
 
-*Built with ❤️ for Aviation Safety & Passenger Rights*
+## API Referansı
+
+Tüm uç noktalar `http://localhost:8000/docs` adresindeki Swagger UI üzerinden interaktif olarak test edilebilir.
+
+### Temel Uç Noktalar
+
+| Method | Endpoint | Açıklama |
+|---|---|---|
+| `GET` | `/health` | Servis sağlık durumu |
+| `GET` | `/api/v1/flights` | Aktif uçuş listesi |
+| `POST` | `/api/v1/crisis` | Yeni kriz tetikle |
+| `GET` | `/api/v1/crisis/{id}` | Kriz detayı ve karar geçmişi |
+| `GET` | `/api/v1/iocc/crises/active` | IOCC aktif kriz görünümü |
+| `POST` | `/api/v1/iocc/decisions/{id}/approve` | IOCC karar onaylama |
+| `GET` | `/api/v1/hub/connections/at-risk` | Riskli transit bağlantılar |
+| `GET` | `/api/v1/pcc/passengers/at-risk` | Riskli yolcu listesi |
+| `POST` | `/api/v1/pcc/passengers/{pnr}/recover` | Yolcu kurtarma aksiyonu |
+| `GET` | `/api/v1/revenue/impact/summary` | Genel maliyet özeti |
+
+---
+
+## Geliştirme Komutları
+
+```bash
+# Docker ile
+docker compose up -d          # Tüm servisleri başlat
+docker compose down           # Durdur
+docker compose logs -f        # Canlı log takibi
+
+# Test
+cd services/decision-engine && pytest
+cd services/notification-service && pytest
+
+# Linting
+cd services/decision-engine && ruff check .
+
+# Frontend
+cd frontend && npm run build  # Production build
+cd frontend && npm run lint   # ESLint kontrolü
+```
+
+---
+
+## Lisans
+
+MIT License — detaylar için [LICENSE](LICENSE) dosyasına bakın.
