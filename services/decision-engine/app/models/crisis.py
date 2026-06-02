@@ -1,5 +1,5 @@
 from enum import Enum
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 
@@ -25,10 +25,22 @@ class CrisisEvent(BaseModel):
     affected_flight_id: int
     reason: str
     severity: CrisisSeverity = CrisisSeverity.MEDIUM
-    triggered_at: datetime = datetime.now
+    triggered_at: datetime = Field(default_factory=datetime.utcnow)
     resolved_at: Optional[datetime] = None
     status: CrisisStatus = CrisisStatus.ACTIVE
     affected_passenger_count: int = 0
 
     class Config:
         from_attributes = True
+
+
+class CrisisCreate(BaseModel):
+    flight_number: str
+    crisis_type: CrisisType
+    reason: str
+    severity: CrisisSeverity = CrisisSeverity.MEDIUM
+
+
+class CrisisStatusUpdate(BaseModel):
+    status: CrisisStatus
+

@@ -1,91 +1,119 @@
 """Crisis management API routes."""
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
-import uuid
 
 from app.db.database import get_db
-from app.db import models as db_models
-from app.models.crisis import CrisisCreate, CrisisResponse, CrisisStatus
+from app.db.models import CrisisDB
+from app.models.crisis import CrisisCreate, CrisisEvent, CrisisStatusUpdate, CrisisStatus
 from app.services.crisis_service import CrisisService
 
 router = APIRouter(prefix="/crisis", tags=["crisis"])
 
 
-@router.get("/", response_model=List[CrisisResponse])
+@router.get("/", response_model=List[CrisisEvent])
 async def list_crises(
     skip: int = 0,
     limit: int = 50,
     db: AsyncSession = Depends(get_db),
 ):
     """List all crisis events with optional pagination."""
-    service = CrisisService(db)
-    return await service.list_crises(skip=skip, limit=limit)
+    from sqlalchemy import select
+    result = await db.execute(
+        select(CrisisDB).offset(skip).limit(limit).order_by(CrisisDB.triggered_at.desc())
+    )
+    return [CrisisEvent.model_validate(c) for c in result.scalars().all()]
 
 
-@router.get("/{crisis_id}", response_model=CrisisResponse)
+@router.get("/{crisis_id}", response_model=CrisisEvent)
 async def get_crisis(
-    crisis_id: str,
+    crisis_id: int,
     db: AsyncSession = Depends(get_db),
 ):
     """Get a specific crisis event by ID."""
-    service = CrisisService(db)
-    crisis = await service.get_crisis(crisis_id)
+    from sqlalchemy import select
+    result = await db.execute(select(CrisisDB).where(CrisisDB.id == crisis_id))
+    crisis = result.scalar_one_or_none()
     if not crisis:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Crisis {crisis_id} not found",
         )
-    return crisis
+    return CrisisEvent.model_validate(crisis)
 
 
-@router.post("/", response_model=CrisisResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=CrisisEvent, status_code=status.HTTP_201_CREATED)
 async def create_crisis(
     payload: CrisisCreate,
-    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
     """Create and trigger a new crisis event.
     
-    The decision engine is invoked as a background task so the response
-    is returned immediately while AI agents process the crisis.
+    The decision engine is invoked to process the crisis.
     """
-    service = CrisisService(db)
-    crisis = await service.create_crisis(payload)
-    background_tasks.add_task(service.process_crisis, str(crisis.id))
-    return crisis
+    try:
+        crisis = await CrisisService.trigger_crisis(
+            session=db,
+            flight_number=payload.flight_number,
+            crisis_type=payload.crisis_type,
+            reason=payload.reason,
+            severity=payload.severity,
+        )
+        return crisis
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
 
 
-@router.patch("/{crisis_id}/status", response_model=CrisisResponse)
+@router.patch("/{crisis_id}/status", response_model=CrisisEvent)
 async def update_crisis_status(
-    crisis_id: str,
-    status_update: CrisisStatus,
+    crisis_id: int,
+    status_update: CrisisStatusUpdate,
     db: AsyncSession = Depends(get_db),
 ):
     """Manually update a crisis status (e.g., mark as resolved)."""
-    service = CrisisService(db)
-    crisis = await service.update_status(crisis_id, status_update.status)
+    from sqlalchemy import select
+    result = await db.execute(select(CrisisDB).where(CrisisDB.id == crisis_id))
+    crisis = result.scalar_one_or_none()
     if not crisis:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Crisis {crisis_id} not found",
         )
-    return crisis
+    
+    crisis.status = status_update.status
+    if status_update.status == CrisisStatus.RESOLVED:
+        from datetime import datetime
+        crisis.resolved_at = datetime.utcnow()
+        
+    await db.commit()
+    await db.refresh(crisis)
+    return CrisisEvent.model_validate(crisis)
 
 
 @router.post("/{crisis_id}/retry", response_model=dict)
 async def retry_crisis(
-    crisis_id: str,
-    background_tasks: BackgroundTasks,
+    crisis_id: int,
     db: AsyncSession = Depends(get_db),
 ):
     """Retry AI decision processing for a failed or stalled crisis."""
-    service = CrisisService(db)
-    crisis = await service.get_crisis(crisis_id)
-    if not crisis:
+    try:
+        await CrisisService.process_crisis(db, crisis_id)
+        return {"message": f"Crisis {crisis_id} processed successfully", "crisis_id": crisis_id}
+    except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Crisis {crisis_id} not found",
+            detail=str(e),
         )
-    background_tasks.add_task(service.process_crisis, crisis_id)
-    return {"message": f"Crisis {crisis_id} requeued for processing", "crisis_id": crisis_id}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )

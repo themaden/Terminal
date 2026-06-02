@@ -5,12 +5,12 @@ from typing import List, Optional
 from datetime import date
 
 from app.db.database import get_db
-from app.models.flight import FlightResponse
+from app.models.flight import Flight
 
 router = APIRouter(prefix="/flights", tags=["flights"])
 
 
-@router.get("/", response_model=List[FlightResponse])
+@router.get("/", response_model=List[Flight])
 async def list_flights(
     origin: Optional[str] = Query(None, description="IATA origin airport code"),
     destination: Optional[str] = Query(None, description="IATA destination airport code"),
@@ -25,7 +25,7 @@ async def list_flights(
     Used by the Rebooking Agent to find candidate flights for displaced passengers.
     """
     from sqlalchemy import select
-    from app.db.models import Flight
+    from app.db.models import FlightDB as Flight
     from sqlalchemy import and_
 
     stmt = select(Flight)
@@ -48,14 +48,14 @@ async def list_flights(
     return result.scalars().all()
 
 
-@router.get("/{flight_id}", response_model=FlightResponse)
+@router.get("/{flight_id}", response_model=Flight)
 async def get_flight(
     flight_id: str,
     db: AsyncSession = Depends(get_db),
 ):
     """Get full details for a specific flight."""
     from sqlalchemy import select
-    from app.db.models import Flight
+    from app.db.models import FlightDB as Flight
 
     result = await db.execute(select(Flight).where(Flight.id == flight_id))
     flight = result.scalar_one_or_none()
