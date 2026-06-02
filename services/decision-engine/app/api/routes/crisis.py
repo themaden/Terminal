@@ -1,5 +1,7 @@
 """Crisis management API routes."""
 
+from datetime import UTC
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -88,10 +90,10 @@ async def update_crisis_status(
             detail=f"Crisis {crisis_id} not found",
         )
 
-    crisis.status = status_update.status
+    crisis.status = status_update.status  # type: ignore
     if status_update.status == CrisisStatus.RESOLVED:
         from datetime import datetime
-        crisis.resolved_at = datetime.utcnow()
+        crisis.resolved_at = datetime.now(UTC).replace(tzinfo=None)  # type: ignore
 
     await db.commit()
     await db.refresh(crisis)

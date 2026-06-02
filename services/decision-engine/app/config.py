@@ -35,9 +35,9 @@ class Settings(BaseSettings):
     APP_DEBUG: bool = True
     APP_VERSION: str = "1.0.0"
 
-    SECRET_KEY: str = "your-super-secret-key-change-in-production"
-    AES_ENCRYPTION_KEY: str = "0123456789abcdef0123456789abcdef"
-    API_KEY: str = "jetnexus-api-key-dev"
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-super-secret-key-change-in-production")
+    AES_ENCRYPTION_KEY: str = os.getenv("AES_ENCRYPTION_KEY", "0123456789abcdef0123456789abcdef")
+    API_KEY: str = os.getenv("API_KEY", "jetnexus-api-key-dev")
 
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:8000"
 

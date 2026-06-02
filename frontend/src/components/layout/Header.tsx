@@ -7,7 +7,7 @@ import { LogOut } from 'lucide-react';
 
 export default function Header() {
   const pathname = usePathname();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<{name: string; role: string; avatar: string} | null>(null);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('jetnexus_user');

@@ -75,7 +75,11 @@ class CrisisSolver:
                 # Find compatible flight seating / rules
                 # Hard constraint: First/Business class can only take flights with capacity or business seats
                 # For simplicity, we just won't assign to flights that are incompatible
-                pass
+                # Add penalty for incompatible classes - high cost to discourage downgrade
+                for f_id in f_ids:
+                    # Penalty coefficient for class downgrade (scaled by distance)
+                    penalty = 2000 if p.ticket_class == TicketClass.FIRST else 1000
+                    prob += x[p.id][f_id] * penalty * (1 if f_id > 0 else 0), f"class_compat_{p.id}_{f_id}"
 
         # Solve the model using CBC (default)
         status = prob.solve(pulp.PULP_CBC_CMD(msg=False))
@@ -95,7 +99,9 @@ class CrisisSolver:
                         break
                 assignments[p.id] = assigned_flight
         else:
-            # Fallback if solver fails - assign None
+            # Fallback if solver fails - assign None and log status
+            import logging
+            logging.warning(f"MILP solver failed with status: {status_str}")
             assignments = {p.id: None for p in passengers}
 
         return OptimizationResult(

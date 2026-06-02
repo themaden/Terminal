@@ -11,7 +11,7 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<{name: string; email: string; role: string; avatar: string} | null>(null);
   const [isChecking, setIsChecking] = useState(true);
   const pathname = usePathname();
 

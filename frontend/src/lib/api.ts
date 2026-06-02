@@ -30,7 +30,9 @@ async function apiFetch<T>(
     try {
       const body = await res.json();
       message = body?.detail ?? message;
-    } catch {}
+    } catch (e) {
+      console.error("Failed to parse error response:", e);
+    }
     throw new Error(message);
   }
 

@@ -26,8 +26,12 @@ twilio_client = None
 if "mock" not in TWILIO_AUTH_TOKEN and TWILIO_ACCOUNT_SID != "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx":
     try:
         twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        logger.info("Twilio client initialized successfully")
     except Exception as e:
-        logger.error(f"Failed to initialize Twilio client: {e}")
+        logger.error(f"Failed to initialize Twilio client: {e}", exc_info=True)
+        twilio_client = None
+else:
+    logger.warning("Using placeholder Twilio credentials - notifications will not be sent")
 
 class NotificationPayload(BaseModel):
     passenger_name: str

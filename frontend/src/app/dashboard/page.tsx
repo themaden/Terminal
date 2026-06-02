@@ -46,7 +46,9 @@ export default function DashboardPage() {
         setDecisions([]);
       }
     } catch (err) {
-      setApiError(err instanceof Error ? err.message : 'API bağlantısı kurulamadı');
+      const errorMessage = err instanceof Error ? err.message : 'API bağlantısı kurulamadı';
+      console.error('Dashboard data fetch error:', err);
+      setApiError(errorMessage);
     } finally {
       setIsLoading(false);
     }

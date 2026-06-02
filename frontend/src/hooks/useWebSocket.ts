@@ -17,7 +17,7 @@ export function useWebSocket(url: string, options: UseWebSocketOptions = {}) {
   const wsRef = useRef<WebSocket | null>(null);
   const retriesRef = useRef(0);
   const [status, setStatus] = useState<WSStatus>("connecting");
-  const [lastMessage, setLastMessage] = useState<unknown>(null);
+  const [lastMessage, setLastMessage] = useState<Record<string, unknown> | string | null>(null);
 
   const connect = useCallback(() => {
     if (typeof window === "undefined") return;
