@@ -14,6 +14,10 @@ from app.api.routes.self_service import router as self_service_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.pss import router as pss_router
 from app.api.routes.flight_data import router as flight_data_router
+from app.api.routes.vouchers import router as vouchers_router
+from app.api.routes.cost_model import router as cost_model_router
+from app.api.routes.gate import router as gate_router
+from app.api.routes.call_center import router as call_center_router
 from app.config import settings
 from app.db.database import Base, engine, get_db
 from app.db.models import AuditLogDB, CrisisDB, DecisionDB, FlightDB, PassengerDB
@@ -47,6 +51,10 @@ app.include_router(self_service_router)
 app.include_router(auth_router)
 app.include_router(pss_router)
 app.include_router(flight_data_router)
+app.include_router(vouchers_router)
+app.include_router(cost_model_router)
+app.include_router(gate_router)
+app.include_router(call_center_router)
 
 # ── CORS ──────────────────────────────────────────────────
 app.add_middleware(
@@ -65,8 +73,9 @@ async def startup_event():
         await conn.run_sync(Base.metadata.create_all)
     async with AsyncSession(engine) as session:
         await seed_data(session)
-    from app.integrations.scheduler import start_scheduler
+    from app.integrations.scheduler import start_scheduler, seed_act_tracker
     start_scheduler()
+    await seed_act_tracker()
 
 
 @app.on_event("shutdown")
