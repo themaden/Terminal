@@ -90,24 +90,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] font-bold uppercase text-surface-bright/50 tracking-wider">Erişim Rolü</label>
-            <div className="flex items-center gap-2.5 bg-[#002349] border border-white/10 rounded-xl px-4 py-2.5">
-              <span className="material-symbols-outlined text-white/30 text-base">manage_accounts</span>
-              <select
-                className="bg-transparent border-none outline-none text-xs w-full text-white font-bold cursor-pointer"
-                value={role}
-                onChange={e => setRole(e.target.value)}
-                style={{ WebkitAppearance: 'none' }}
-              >
-                <option value="Ops Director" className="bg-[#002349]">Operations Director (HITL)</option>
-                <option value="IOCC Operator" className="bg-[#002349]">IOCC Operator</option>
-                <option value="System Admin" className="bg-[#002349]">System Administrator</option>
-                <option value="Crew Dispatch" className="bg-[#002349]">Crew Dispatcher</option>
-              </select>
-            </div>
-          </div>
-
           {error && (
             <div className="flex items-center gap-2 px-3 py-2 bg-rose-500/10 border border-rose-500/30 rounded-xl">
               <span className="material-symbols-outlined text-rose-400 text-sm">error</span>

@@ -589,7 +589,7 @@ export const voucherApi = {
 
 export interface CostBreakdown {
   crisis_id: number; flight_number: string; aircraft_type: string;
-  affected_passengers: number; delay_hours: number;
+  distance_km: number; affected_passengers: number; delay_hours: number;
   eu261_liability_eur: number; catering_eur: number; hotel_eur: number;
   transfer_eur: number; crew_overtime_eur: number; slot_turnaround_eur: number;
   fuel_idle_eur: number; gds_rebooking_eur: number;
