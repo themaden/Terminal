@@ -8,6 +8,9 @@ from app.api.routes.hub_control import router as hub_router
 from app.api.routes.iocc import router as iocc_router
 from app.api.routes.pcc import router as pcc_router
 from app.api.routes.revenue import router as revenue_router
+from app.api.routes.simulation import router as simulation_router
+from app.api.routes.prediction import router as prediction_router
+from app.api.routes.self_service import router as self_service_router
 from app.config import settings
 from app.db.database import Base, engine, get_db
 from app.db.models import AuditLogDB, CrisisDB, DecisionDB, FlightDB, PassengerDB
@@ -35,6 +38,9 @@ app.include_router(pcc_router)
 app.include_router(hub_router)
 app.include_router(iocc_router)
 app.include_router(revenue_router)
+app.include_router(simulation_router)
+app.include_router(prediction_router)
+app.include_router(self_service_router)
 
 # ── CORS ──────────────────────────────────────────────────
 app.add_middleware(
