@@ -5,11 +5,27 @@
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
 
+function getToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('jetnexus_token');
+}
+
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = getToken();
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options?.headers,
+    },
     ...options,
   });
+  if (res.status === 401) {
+    localStorage.removeItem('jetnexus_token');
+    localStorage.removeItem('jetnexus_user');
+    if (typeof window !== 'undefined') window.location.href = '/login';
+    throw new Error('Oturum süresi doldu');
+  }
   if (!res.ok) {
     let message = `API error ${res.status}`;
     try { const b = await res.json(); message = b?.detail ?? message; } catch {}
@@ -437,4 +453,114 @@ export const selfServiceApi = {
       { method: 'POST', body: JSON.stringify({ flight_id: flightId }) }
     ),
   boardingPass: (pnr: string) => apiFetch<BoardingPass>(`/api/v1/self-service/${pnr.toUpperCase()}/boarding-pass`),
+};
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+export interface AuthUser {
+  id: number;
+  email: string;
+  name: string;
+  role: string;
+  avatar: string;
+}
+
+export interface TokenResponse {
+  access_token: string;
+  token_type: string;
+  user: AuthUser;
+}
+
+export const authApi = {
+  login: (email: string, password: string) =>
+    apiFetch<TokenResponse>('/api/v1/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    }),
+  me: () => apiFetch<AuthUser>('/api/v1/auth/me'),
+  users: () => apiFetch<AuthUser[]>('/api/v1/auth/users'),
+};
+
+// ─── PSS / Amadeus ────────────────────────────────────────────────────────────
+
+export interface FlightOffer {
+  id: string;
+  source: string;
+  flight_number: string;
+  airline_code: string;
+  origin: string;
+  destination: string;
+  departure_date: string;
+  departure_time: string;
+  arrival_time: string;
+  duration_minutes: number;
+  cabin_class: string;
+  available_seats: number;
+  price_eur: number;
+  price_currency: string;
+  is_codeshare: boolean;
+  stops: number;
+}
+
+export interface PssStatus {
+  provider: string;
+  mode: string;
+  configured: boolean;
+  sandbox_url: string;
+  endpoints: string[];
+}
+
+export const pssApi = {
+  search: (origin: string, destination: string, date: string, cabin = 'ECONOMY', adults = 1) =>
+    apiFetch<{ count: number; offers: FlightOffer[] }>('/api/v1/pss/amadeus/search', {
+      method: 'POST',
+      body: JSON.stringify({ origin, destination, date, cabin, adults, max_results: 10 }),
+    }),
+  flightStatus: (flightNumber: string) =>
+    apiFetch<Record<string, unknown>>(`/api/v1/pss/amadeus/status/${flightNumber}`),
+  pnrLookup: (pnr: string) =>
+    apiFetch<Record<string, unknown>>(`/api/v1/pss/amadeus/pnr/${pnr}`),
+  status: () => apiFetch<PssStatus>('/api/v1/pss/status'),
+};
+
+// ─── Real-time Flight Data (Cirium/AODB) ──────────────────────────────────────
+
+export interface LiveFlightStatus {
+  source: string;
+  flight_number: string;
+  status: string;
+  departure_delay_minutes: number;
+  arrival_delay_minutes?: number;
+  gate: string;
+  terminal?: string;
+  last_updated: string;
+}
+
+export interface DepartureFlight {
+  source: string;
+  flight_number: string;
+  airline: string;
+  destination: string;
+  scheduled_departure: string;
+  estimated_departure: string;
+  delay_minutes: number;
+  status: string;
+  gate: string;
+  terminal: string;
+}
+
+export interface SchedulerStatus {
+  running: boolean;
+  jobs: { id: string; name: string; next_run: string | null }[];
+  last_runs: Record<string, string>;
+}
+
+export const flightDataApi = {
+  status: (flightNumber: string) =>
+    apiFetch<LiveFlightStatus>(`/api/v1/flight-data/status/${flightNumber}`),
+  departures: (airport: string, limit = 12) =>
+    apiFetch<{ airport: string; flights: DepartureFlight[] }>(`/api/v1/flight-data/departures/${airport}?limit=${limit}`),
+  arrivals: (airport: string, limit = 12) =>
+    apiFetch<{ airport: string; flights: DepartureFlight[] }>(`/api/v1/flight-data/arrivals/${airport}?limit=${limit}`),
+  schedulerStatus: () => apiFetch<SchedulerStatus>('/api/v1/flight-data/scheduler/status'),
 };

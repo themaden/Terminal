@@ -2,33 +2,44 @@
 
 import React, { useState } from 'react';
 import { Loader2, ShieldCheck, KeyRound } from 'lucide-react';
+import { authApi } from '@/lib/api';
 
 const PROFILES = [
-  { email: 'manager@jetnexus.ai', role: 'Ops Director', name: 'Yasin Maden', avatar: 'YM' },
-  { email: 'iocc@jetnexus.ai', role: 'IOCC Operator', name: 'Selin Aksoy', avatar: 'SA' },
-  { email: 'admin@jetnexus.ai', role: 'System Admin', name: 'Admin User', avatar: 'AU' },
+  { email: 'manager@jetnexus.ai', password: 'jetnexus2024', label: 'Ops Director' },
+  { email: 'iocc@jetnexus.ai',    password: 'jetnexus2024', label: 'IOCC Operator' },
+  { email: 'admin@jetnexus.ai',   password: 'jetnexus2024', label: 'System Admin' },
 ];
 
 export default function LoginPage() {
   const [email, setEmail] = useState(PROFILES[0].email);
-  const [password, setPassword] = useState('');
-  const [role, setRole] = useState(PROFILES[0].role);
+  const [password, setPassword] = useState('jetnexus2024');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setTimeout(() => {
-      const profile = PROFILES.find(p => p.email === email) ?? PROFILES[0];
-      localStorage.setItem('jetnexus_user', JSON.stringify({ ...profile, role }));
-      setIsLoading(false);
+    setError(null);
+    try {
+      const res = await authApi.login(email, password);
+      localStorage.setItem('jetnexus_token', res.access_token);
+      localStorage.setItem('jetnexus_user', JSON.stringify({
+        name: res.user.name,
+        role: res.user.role,
+        avatar: res.user.avatar,
+        email: res.user.email,
+      }));
       window.location.href = '/dashboard';
-    }, 1000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Giriş başarısız');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const quickSelect = (p: typeof PROFILES[0]) => {
     setEmail(p.email);
-    setRole(p.role);
+    setPassword(p.password);
   };
 
   return (
@@ -97,6 +108,13 @@ export default function LoginPage() {
             </div>
           </div>
 
+          {error && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-rose-500/10 border border-rose-500/30 rounded-xl">
+              <span className="material-symbols-outlined text-rose-400 text-sm">error</span>
+              <p className="text-xs text-rose-300">{error}</p>
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={isLoading}
@@ -120,7 +138,7 @@ export default function LoginPage() {
                     : 'bg-white/5 border-white/10 text-white/70 hover:border-primary-container hover:text-primary-fixed'
                 }`}
               >
-                {p.role.split(' ')[0]}
+                {p.label.split(' ')[0]}
               </button>
             ))}
           </div>

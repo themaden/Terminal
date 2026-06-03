@@ -19,6 +19,7 @@ const NAV_ITEMS = [
   { name: 'Yolcular', path: '/passengers', icon: 'group' },
   { name: 'Uçuşlar', path: '/flights', icon: 'flight_takeoff' },
   { name: 'Audit', path: '/audit', icon: 'shield_with_heart' },
+  { name: 'Entegrasyon', path: '/integrations', icon: 'settings_input_component' },
 ];
 
 interface User { name: string; role: string; avatar: string }
