@@ -74,10 +74,14 @@ async def root():
     }
 
 # ── CORS ──────────────────────────────────────────────────
+_cors_origins = settings.cors_origins_list
+_allow_all = settings.APP_ENV != "production"
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
-    allow_credentials=True,
+    allow_origins=["*"] if _allow_all else _cors_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app" if not _allow_all else None,
+    allow_credentials=not _allow_all,
     allow_methods=["*"],
     allow_headers=["*"],
 )

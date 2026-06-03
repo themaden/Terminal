@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     CIRIUM_APP_KEY: str = "your_cirium_app_key"
 
     # ── CORS ──────────────────────────────────────────────────────────────────
-    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:8000"
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:8000,https://*.vercel.app,https://jetnexus.vercel.app"
 
     @property
     def cors_origins_list(self) -> list[str]:
