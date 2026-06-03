@@ -310,3 +310,131 @@ export const revenueApi = {
   byClass: () => apiFetch<ClassBreakdown[]>('/api/v1/revenue/impact/by-class'),
   efficiency: () => apiFetch<Efficiency>('/api/v1/revenue/efficiency'),
 };
+
+// ─── Simulation Engine ────────────────────────────────────────────────────────
+
+export interface ScenarioResult {
+  scenario_id: number;
+  action_plan: string;
+  action_label: string;
+  affected_passengers: number;
+  total_cost_eur: number;
+  rebooking_rate_pct: number;
+  avg_delay_minutes: number;
+  eu261_liability_eur: number;
+  hotel_cost_eur: number;
+  score: number;
+}
+
+export interface SimulationResponse {
+  flight_number: string;
+  disruption_type: string;
+  n_iterations: number;
+  best_plan: ScenarioResult;
+  scenarios: ScenarioResult[];
+  cost_distribution: { min: number; max: number; mean: number; best_plan_cost: number };
+  recommendation: string;
+  run_at: string;
+}
+
+export const simulationApi = {
+  run: (params: { flight_number: string; disruption_type: string; delay_minutes: number; n_iterations?: number }) =>
+    apiFetch<SimulationResponse>('/api/v1/simulation/run', {
+      method: 'POST',
+      body: JSON.stringify({ n_iterations: 1000, ...params }),
+    }),
+  history: () => apiFetch<{ total_runs: number; last_run: string; avg_iterations: number; most_simulated_flight: string }>('/api/v1/simulation/history'),
+};
+
+// ─── Proactive Prediction ─────────────────────────────────────────────────────
+
+export interface RiskFactor {
+  factor: string;
+  impact: string;
+  severity: string;
+}
+
+export interface FlightRiskScore {
+  flight_number: string;
+  origin: string;
+  destination: string;
+  scheduled_departure: string;
+  risk_score: number;
+  risk_level: string;
+  alert_triggered: boolean;
+  risk_factors: RiskFactor[];
+  recommended_action: string;
+  confidence: number;
+}
+
+export interface PredictionSummary {
+  total_flights_scored: number;
+  critical_alerts: number;
+  high_risk: number;
+  medium_risk: number;
+  low_risk: number;
+  last_run: string;
+  next_run: string;
+}
+
+export const predictionApi = {
+  riskScores: () => apiFetch<FlightRiskScore[]>('/api/v1/prediction/risk-scores'),
+  summary: () => apiFetch<PredictionSummary>('/api/v1/prediction/summary'),
+};
+
+// ─── Passenger Self-Service ───────────────────────────────────────────────────
+
+export interface AlternativeFlight {
+  flight_id: number;
+  flight_number: string;
+  origin: string;
+  destination: string;
+  scheduled_departure: string;
+  available_seats: number;
+  fare_difference_eur: number;
+  is_recommended: boolean;
+}
+
+export interface VoucherItem {
+  type: string;
+  value_eur: number;
+  code: string;
+  valid_until: string;
+  details: string;
+}
+
+export interface BoardingPass {
+  pnr: string;
+  passenger_name: string;
+  flight_number: string;
+  origin: string;
+  destination: string;
+  seat: string;
+  gate: string;
+  boarding_time: string;
+  departure_time: string;
+  qr_data: string;
+}
+
+export interface SelfServiceStatus {
+  pnr: string;
+  passenger_name: string;
+  original_flight: string;
+  crisis_active: boolean;
+  crisis_type?: string;
+  compensation_eur: number;
+  alternatives: AlternativeFlight[];
+  vouchers: VoucherItem[];
+  decision_status: string;
+  message: string;
+}
+
+export const selfServiceApi = {
+  status: (pnr: string) => apiFetch<SelfServiceStatus>(`/api/v1/self-service/${pnr.toUpperCase()}`),
+  rebook: (pnr: string, flightId: number) =>
+    apiFetch<{ success: boolean; message: string; new_flight: string; departure: string }>(
+      `/api/v1/self-service/${pnr.toUpperCase()}/rebook`,
+      { method: 'POST', body: JSON.stringify({ flight_id: flightId }) }
+    ),
+  boardingPass: (pnr: string) => apiFetch<BoardingPass>(`/api/v1/self-service/${pnr.toUpperCase()}/boarding-pass`),
+};
