@@ -564,3 +564,114 @@ export const flightDataApi = {
     apiFetch<{ airport: string; flights: DepartureFlight[] }>(`/api/v1/flight-data/arrivals/${airport}?limit=${limit}`),
   schedulerStatus: () => apiFetch<SchedulerStatus>('/api/v1/flight-data/scheduler/status'),
 };
+
+// ─── Voucher Engine ───────────────────────────────────────────────────────────
+
+export interface VoucherBundle {
+  pnr: string; passenger_name: string; ticket_class: string;
+  wait_hours: number; package_label: string; total_value_eur: number;
+  vouchers: { type: string; value_eur: number; code: string; valid_until: string; details: string; package_label: string }[];
+  issued_at: string;
+}
+
+export const voucherApi = {
+  forPnr: (pnr: string, waitHours: number) =>
+    apiFetch<VoucherBundle>(`/api/v1/vouchers/${pnr}?wait_hours=${waitHours}`),
+  bulkIssue: (crisisId: number, overrideHours?: number) =>
+    apiFetch<{ crisis_id: number; passengers_issued: number; grand_total_eur: number; bundles: VoucherBundle[] }>(
+      '/api/v1/vouchers/bulk-issue',
+      { method: 'POST', body: JSON.stringify({ crisis_id: crisisId, override_wait_hours: overrideHours }) }
+    ),
+  rules: () => apiFetch<{ class_multipliers: Record<string,number>; rules: Record<string,unknown>[] }>('/api/v1/vouchers/rules/table'),
+};
+
+// ─── Cost Model ───────────────────────────────────────────────────────────────
+
+export interface CostBreakdown {
+  crisis_id: number; flight_number: string; aircraft_type: string;
+  affected_passengers: number; delay_hours: number;
+  eu261_liability_eur: number; catering_eur: number; hotel_eur: number;
+  transfer_eur: number; crew_overtime_eur: number; slot_turnaround_eur: number;
+  fuel_idle_eur: number; gds_rebooking_eur: number;
+  total_operational_eur: number; revenue_loss_eur: number; total_impact_eur: number;
+  load_factor_pct: number; avg_fare_eur: number; cost_per_pax_eur: number;
+}
+
+export interface CostSummary {
+  total_crises: number; active_crises: number;
+  total_eu261_eur: number; total_operational_eur: number;
+  total_revenue_loss_eur: number; grand_total_eur: number;
+  avg_cost_per_crisis_eur: number; avg_cost_per_pax_eur: number;
+  by_crisis_type: Record<string, { count: number; total_eur: number }>;
+}
+
+export const costModelApi = {
+  crisis: (crisisId: number) => apiFetch<CostBreakdown>(`/api/v1/cost-model/crisis/${crisisId}`),
+  summary: () => apiFetch<CostSummary>('/api/v1/cost-model/summary'),
+  benchmarks: () => apiFetch<{ benchmarks: Record<string,unknown>[] }>('/api/v1/cost-model/fleet/benchmarks'),
+};
+
+// ─── Gate / Hub Congestion ────────────────────────────────────────────────────
+
+export interface HubCongestion {
+  airport: string; overall_congestion_pct: number; alert_level: string;
+  terminals: { terminal: string; pier: string; total_gates: number; occupied: number; available: number; congestion_pct: number; alert: boolean }[];
+  total_gates: number; occupied_gates: number; available_gates: number;
+}
+
+export interface GateSuggestion {
+  gate: number; terminal: string; pier: string; reason: string; score: number;
+}
+
+export const gateApi = {
+  congestion: (airport = 'IST') => apiFetch<HubCongestion>(`/api/v1/gate/availability/${airport}`),
+  suggest: (aircraftType: string, flightType = 'international', n = 3) =>
+    apiFetch<GateSuggestion[]>(`/api/v1/gate/suggest?aircraft_type=${encodeURIComponent(aircraftType)}&flight_type=${flightType}&n=${n}`),
+  board: (terminal?: string) =>
+    apiFetch<{ gates: Record<string,unknown>[] }>(`/api/v1/gate/board${terminal ? `?terminal=${terminal}` : ''}`),
+  assign: (flightNumber: string, gate: number, aircraftType: string) =>
+    apiFetch<{ success: boolean; message: string }>(
+      `/api/v1/gate/assign?flight_number=${encodeURIComponent(flightNumber)}&gate=${gate}&aircraft_type=${encodeURIComponent(aircraftType)}`,
+      { method: 'POST' }
+    ),
+};
+
+// ─── Call Center CRM ──────────────────────────────────────────────────────────
+
+export interface CallContext {
+  pnr: string; passenger_name: string; ticket_class: string; loyalty_tier: string;
+  flight_number: string; origin: string; destination: string; special_needs?: string;
+  crisis_active: boolean; crisis_type?: string; crisis_severity?: string;
+  recommended_action?: string; compensation_eur: number;
+  agent_script: { greeting: string; empathy: string; offer: string; next: string; closing: string; quick_actions: string[] };
+  case_history: { ticket_id: number; subject: string; status: string; created_at: string }[];
+}
+
+export interface Ticket {
+  ticket_id: number; pnr: string; subject: string; category: string;
+  priority: string; status: string; notes: string; agent_id: string;
+  created_at: string; updated_at: string;
+}
+
+export interface CallCenterStats {
+  total_tickets: number; open: number; in_progress: number; resolved: number;
+  avg_resolution_minutes: number; calls_today: number;
+  satisfaction_score: number; first_call_resolution_pct: number;
+}
+
+export const callCenterApi = {
+  lookup: (pnr: string) => apiFetch<CallContext>(`/api/v1/call-center/lookup/${pnr.toUpperCase()}`),
+  createTicket: (pnr: string, subject: string, notes = '', priority = 'HIGH') =>
+    apiFetch<Ticket>('/api/v1/call-center/tickets', {
+      method: 'POST',
+      body: JSON.stringify({ pnr: pnr.toUpperCase(), subject, notes, priority, category: 'IRROPS' }),
+    }),
+  tickets: (status?: string) =>
+    apiFetch<Ticket[]>(`/api/v1/call-center/tickets${status ? `?status=${status}` : ''}`),
+  updateTicket: (id: number, status: string, notes?: string) =>
+    apiFetch<Ticket>(`/api/v1/call-center/tickets/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, notes }),
+    }),
+  stats: () => apiFetch<CallCenterStats>('/api/v1/call-center/stats'),
+};
