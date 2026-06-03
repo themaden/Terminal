@@ -18,6 +18,8 @@ from app.api.routes.vouchers import router as vouchers_router
 from app.api.routes.cost_model import router as cost_model_router
 from app.api.routes.gate import router as gate_router
 from app.api.routes.call_center import router as call_center_router
+from app.api.routes.departure_hold import router as departure_hold_router
+from app.api.routes.proactive import router as proactive_router
 from app.config import settings
 from app.db.database import Base, engine, get_db
 from app.db.models import AuditLogDB, CrisisDB, DecisionDB, FlightDB, PassengerDB
@@ -55,6 +57,8 @@ app.include_router(vouchers_router)
 app.include_router(cost_model_router)
 app.include_router(gate_router)
 app.include_router(call_center_router)
+app.include_router(departure_hold_router)
+app.include_router(proactive_router)
 
 # ── CORS ──────────────────────────────────────────────────
 app.add_middleware(

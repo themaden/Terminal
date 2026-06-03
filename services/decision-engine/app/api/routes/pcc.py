@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_db
 from app.db.models import PassengerDB, DecisionDB, CrisisDB, FlightDB
+from app.rules.passenger_priority import compute_priority, rank_passengers
 
 router = APIRouter(prefix="/api/v1/pcc", tags=["pcc"])
 
@@ -27,15 +28,35 @@ async def get_at_risk_passengers(
     )
     rows = result.all()
 
-    passengers = []
+    raw = []
     for pax, decision, crisis, flight in rows:
-        passengers.append({
+        ssr_codes = []
+        if pax.special_needs:
+            sn = pax.special_needs.upper()
+            if "WHEELCHAIR" in sn or "WCHR" in sn: ssr_codes.append("WCHR")
+            if "UMNR" in sn or "CHILD" in sn:      ssr_codes.append("UMNR")
+            if "MEDICAL" in sn or "MEDA" in sn:    ssr_codes.append("MEDA")
+
+        priority = compute_priority(
+            passenger_id=pax.id,
+            pnr=pax.pnr,
+            name=f"{pax.first_name} {pax.last_name}",
+            loyalty_tier=str(pax.loyalty_tier.value if hasattr(pax.loyalty_tier, 'value') else pax.loyalty_tier),
+            ticket_class=str(pax.ticket_class.value if hasattr(pax.ticket_class, 'value') else pax.ticket_class),
+            ssr_codes=ssr_codes,
+        )
+
+        raw.append({
             "passenger_id": pax.id,
             "pnr": pax.pnr,
             "name": f"{pax.first_name} {pax.last_name}",
             "ticket_class": pax.ticket_class,
             "loyalty_tier": pax.loyalty_tier,
             "special_needs": pax.special_needs,
+            "ssr_codes": ssr_codes,
+            "priority_score": priority.priority_score,
+            "requires_staff_escort": priority.requires_staff_escort,
+            "recovery_notes": priority.recovery_notes,
             "flight_number": flight.flight_number,
             "origin": flight.origin,
             "destination": flight.destination,
@@ -48,7 +69,9 @@ async def get_at_risk_passengers(
             "agent_confidence": decision.agent_confidence,
         })
 
-    return {"count": len(passengers), "passengers": passengers}
+    # Öncelik skoruna göre sırala: PLATINUM/FIRST/UMNR önce
+    raw.sort(key=lambda p: p["priority_score"], reverse=True)
+    return {"count": len(raw), "passengers": raw}
 
 
 @router.get("/passengers/{pnr}")
