@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import relationship
 
@@ -8,6 +8,20 @@ from app.db.database import Base
 from app.models.crisis import CrisisSeverity, CrisisStatus, CrisisType
 from app.models.decision import DecisionAction, DecisionStatus
 from app.models.flight import FlightStatus
+
+
+class UserDB(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    full_name = Column(String(200), nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    role = Column(String(50), nullable=False, default="operator")
+    avatar = Column(String(10), nullable=False, default="OP")
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    last_login = Column(DateTime, nullable=True)
 from app.models.passenger import LoyaltyTier, TicketClass
 
 

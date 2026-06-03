@@ -4,13 +4,29 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.security import hash_password
 from app.db.database import async_session_maker
-from app.db.models import FlightDB, PassengerDB
+from app.db.models import FlightDB, PassengerDB, UserDB
 from app.models.flight import FlightStatus
 from app.models.passenger import LoyaltyTier, TicketClass
 
 
+async def _seed_users(session: AsyncSession) -> None:
+    result = await session.execute(select(UserDB))
+    if result.scalars().first():
+        return
+    users = [
+        UserDB(email="manager@jetnexus.ai", full_name="Yasin Maden", hashed_password=hash_password("jetnexus2024"), role="manager", avatar="YM", is_active=True),
+        UserDB(email="iocc@jetnexus.ai",    full_name="Sara Arslan",  hashed_password=hash_password("jetnexus2024"), role="operator", avatar="SA", is_active=True),
+        UserDB(email="admin@jetnexus.ai",   full_name="Ali Usta",     hashed_password=hash_password("jetnexus2024"), role="admin",    avatar="AU", is_active=True),
+    ]
+    session.add_all(users)
+    await session.commit()
+
+
 async def seed_data(session: AsyncSession):
+    await _seed_users(session)
+
     # Check if we already have passengers
     result = await session.execute(select(PassengerDB))
     if result.scalars().first() is not None:

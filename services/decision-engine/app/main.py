@@ -11,6 +11,9 @@ from app.api.routes.revenue import router as revenue_router
 from app.api.routes.simulation import router as simulation_router
 from app.api.routes.prediction import router as prediction_router
 from app.api.routes.self_service import router as self_service_router
+from app.api.routes.auth import router as auth_router
+from app.api.routes.pss import router as pss_router
+from app.api.routes.flight_data import router as flight_data_router
 from app.config import settings
 from app.db.database import Base, engine, get_db
 from app.db.models import AuditLogDB, CrisisDB, DecisionDB, FlightDB, PassengerDB
@@ -41,6 +44,9 @@ app.include_router(revenue_router)
 app.include_router(simulation_router)
 app.include_router(prediction_router)
 app.include_router(self_service_router)
+app.include_router(auth_router)
+app.include_router(pss_router)
+app.include_router(flight_data_router)
 
 # ── CORS ──────────────────────────────────────────────────
 app.add_middleware(
@@ -54,11 +60,20 @@ app.add_middleware(
 # ── Startup ───────────────────────────────────────────────
 @app.on_event("startup")
 async def startup_event():
-    """Create DB tables and seed demo data on first run."""
+    """Create DB tables, seed demo data, and start background jobs."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     async with AsyncSession(engine) as session:
         await seed_data(session)
+    from app.integrations.scheduler import start_scheduler
+    start_scheduler()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    from app.integrations.scheduler import scheduler
+    if scheduler.running:
+        scheduler.shutdown(wait=False)
 
 # ═══════════════════════════════════════════════════════════
 # HEALTH

@@ -39,6 +39,18 @@ class Settings(BaseSettings):
     AES_ENCRYPTION_KEY: str = os.getenv("AES_ENCRYPTION_KEY", "0123456789abcdef0123456789abcdef")
     API_KEY: str = os.getenv("API_KEY", "jetnexus-api-key-dev")
 
+    # JWT
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRE_MINUTES: int = 480
+
+    # Amadeus PSS (sandbox)
+    AMADEUS_CLIENT_ID: str = os.getenv("AMADEUS_CLIENT_ID", "sandbox_client_id")
+    AMADEUS_CLIENT_SECRET: str = os.getenv("AMADEUS_CLIENT_SECRET", "sandbox_client_secret")
+
+    # Cirium FlightStats (AODB feed)
+    CIRIUM_APP_ID: str = os.getenv("CIRIUM_APP_ID", "your_cirium_app_id")
+    CIRIUM_APP_KEY: str = os.getenv("CIRIUM_APP_KEY", "your_cirium_app_key")
+
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:8000"
 
     LOG_LEVEL: str = "INFO"
