@@ -9,6 +9,7 @@ const NAV = [
     section: 'ANA',
     items: [
       { path: '/dashboard', icon: 'grid_view',     label: 'Dashboard' },
+      { path: '/demo',      icon: 'play_circle',   label: 'Jüri Demo' },
     ],
   },
   {
