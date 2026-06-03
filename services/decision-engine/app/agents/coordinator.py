@@ -25,36 +25,58 @@ class CrisisCoordinator:
         self.client = httpx.AsyncClient(timeout=60.0)
 
     async def _call_llm(self, system_prompt: str, user_prompt: str) -> str:
-        """Call OpenAI Chat Completions API. Falls back to mock if key is missing."""
-        if not self.api_key or self.api_key.startswith("sk-your"):
-            # Fallback mock LLM response when OpenAI API Key is missing/placeholder
-            return "[MOCK AI RESPONSE] Rule-based decision applied. No OpenAI key configured."
+        """
+        LLM çağrısı — öncelik zinciri:
+          1. OpenAI GPT-4o  (OPENAI_API_KEY varsa)
+          2. Ollama Llama 3.2  (yerel, ücretsiz — Ollama kuruluysa)
+          3. Kural tabanlı mock yanıt  (her ikisi de yoksa)
+        """
+        # ── 1. OpenAI ───────────────────────────────────────────────────────
+        if settings.openai_configured:
+            try:
+                response = await self.client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
+                    json={
+                        "model": settings.LLM_MODEL,
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt},
+                        ],
+                        "temperature": settings.LLM_TEMPERATURE,
+                        "max_tokens": settings.LLM_MAX_TOKENS,
+                    },
+                )
+                if response.status_code == 200:
+                    return response.json()["choices"][0]["message"]["content"]
+            except Exception:
+                pass  # OpenAI başarısız → Ollama'ya düş
 
+        # ── 2. Ollama / Llama 3.2 ────────────────────────────────────────────
         try:
-            # BUG FIX: was 'completypes' — corrected to 'completions'
             response = await self.client.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json"
-                },
+                f"{settings.OLLAMA_BASE_URL}/api/chat",
                 json={
-                    "model": settings.LLM_MODEL,
+                    "model": settings.OLLAMA_MODEL,
                     "messages": [
                         {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
+                        {"role": "user", "content": user_prompt},
                     ],
-                    "temperature": settings.LLM_TEMPERATURE,
-                    "max_tokens": settings.LLM_MAX_TOKENS,
-                }
+                    "stream": False,
+                },
+                timeout=30.0,
             )
             if response.status_code == 200:
                 data = response.json()
-                return data["choices"][0]["message"]["content"]
-            else:
-                return f"[LLM ERROR] Status {response.status_code}: {response.text[:200]}"
-        except Exception as e:
-            return f"[LLM EXCEPTION] {e!s}"
+                return data.get("message", {}).get("content", "")
+        except Exception:
+            pass  # Ollama da yok → kural tabanlı
+
+        # ── 3. Kural tabanlı fallback ─────────────────────────────────────────
+        return (
+            "[KURAL TABANLI KARAR] OpenAI ve Ollama yapılandırılmamış. "
+            "IATA standartları ve EU261 düzenlemesine göre otomatik karar uygulandı."
+        )
 
     async def process_passenger_decisions(
         self,
