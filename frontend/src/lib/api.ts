@@ -1,41 +1,20 @@
 /**
- * api.ts — Centralized API client for JetNexus AI Decision Engine.
- *
- * All fetch calls go through this module so we have a single place to:
- *  - Set the base URL from env
- *  - Handle errors uniformly
- *  - Add auth headers if needed in the future
+ * api.ts — JetNexus AI centralized API client.
+ * Single source of truth for all backend requests.
  */
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
 
-// ─── Generic fetch helper ─────────────────────────────────────────────────────
-
-async function apiFetch<T>(
-  path: string,
-  options?: RequestInit
-): Promise<T> {
-  const url = `${API_BASE}${path}`;
-  const res = await fetch(url, {
-    headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
     ...options,
   });
-
   if (!res.ok) {
     let message = `API error ${res.status}`;
-    try {
-      const body = await res.json();
-      message = body?.detail ?? message;
-    } catch (e) {
-      console.error("Failed to parse error response:", e);
-    }
+    try { const b = await res.json(); message = b?.detail ?? message; } catch {}
     throw new Error(message);
   }
-
   return res.json() as Promise<T>;
 }
 
@@ -109,81 +88,225 @@ export interface AuditLog {
   details: string;
   confidence: number;
   timestamp: string;
+  crisis_id?: number;
 }
 
-// ─── Crisis API ───────────────────────────────────────────────────────────────
+// IOCC
+export interface ActiveCrisis {
+  crisis_id: number;
+  crisis_type: string;
+  severity: string;
+  flight_number: string;
+  origin: string;
+  destination: string;
+  affected_passengers: number;
+  triggered_at: string;
+  reason: string;
+}
+
+export interface IOCCDashboard {
+  active_crises: ActiveCrisis[];
+  active_crisis_count: number;
+  pending_approvals: number;
+  total_affected_passengers: number;
+  act_tracker: { total: number; ok: number; at_risk: number; critical: number; missed: number };
+}
+
+export interface SimResult {
+  simulation: boolean;
+  flight_number: string;
+  disruption_type: string;
+  delay_minutes: number;
+  estimated_affected_passengers: number;
+  estimated_eu261_cost_eur: number;
+  sample_recommendations: {
+    pnr: string;
+    action: string;
+    priority_score: number;
+    compensation_eur: number;
+    compliance_flags: string[];
+    reasoning: string;
+  }[];
+}
+
+// Hub Control
+export interface ConnectionRecord {
+  pnr: string;
+  inbound_flight: string;
+  outbound_flight: string;
+  hub_airport: string;
+  inbound_eta: string;
+  outbound_std: string;
+  act_minutes: number;
+  mct_minutes: number;
+  status: 'OK' | 'AT_RISK' | 'CRITICAL' | 'MISSED';
+  last_updated: string;
+}
+
+export interface ConnectionSummary {
+  total: number;
+  ok: number;
+  at_risk: number;
+  critical: number;
+  missed: number;
+}
+
+// PCC
+export interface AtRiskPassenger {
+  passenger_id: number;
+  pnr: string;
+  name: string;
+  ticket_class: string;
+  loyalty_tier: string;
+  special_needs: string | null;
+  flight_number: string;
+  origin: string;
+  destination: string;
+  crisis_type: string;
+  crisis_severity: string;
+  recommended_action: string;
+  compensation_eur: number;
+  hotel: string | null;
+  decision_status: string;
+  agent_confidence: number;
+}
+
+export interface PCCSummary {
+  pending_decisions: number;
+  executed_decisions: number;
+  total_compensation_paid_eur: number;
+  active_crises: number;
+}
+
+// Revenue
+export interface ImpactSummary {
+  compensation: {
+    paid_eur: number;
+    pending_eur: number;
+    total_eur: number;
+    average_per_passenger_eur: number;
+  };
+  crises: { total: number; active: number; resolved: number };
+  decisions: { rebooked_passengers: number; hotel_accommodations: number };
+}
+
+export interface CrisisImpact {
+  crisis_id: number;
+  crisis_type: string;
+  severity: string;
+  status: string;
+  triggered_at: string;
+  flight_number: string;
+  route: string;
+  affected_passengers: number;
+  total_compensation_eur: number;
+  decision_count: number;
+  avg_compensation_eur: number;
+}
+
+export interface ClassBreakdown {
+  ticket_class: string;
+  affected_count: number;
+  total_compensation_eur: number;
+  avg_compensation_eur: number;
+}
+
+export interface Efficiency {
+  total_decisions: number;
+  executed: number;
+  pending: number;
+  rejected: number;
+  automation_rate_pct: number;
+  avg_agent_confidence: number;
+}
+
+// ─── API Modules ──────────────────────────────────────────────────────────────
+
+export const healthApi = {
+  check: () => apiFetch<{ status: string }>('/health'),
+  ready: () => apiFetch<{ ready: boolean }>('/health/ready'),
+};
+
+export const statsApi = {
+  get: () => apiFetch<Stats>('/api/v1/stats'),
+};
 
 export const crisisApi = {
   listAll: (skip = 0, limit = 50) =>
     apiFetch<CrisisEvent[]>(`/api/v1/crisis?skip=${skip}&limit=${limit}`),
-
-  listActive: () =>
-    apiFetch<CrisisEvent[]>("/api/v1/crisis/active"),
-
-  getById: (id: number) =>
-    apiFetch<CrisisEvent>(`/api/v1/crisis/${id}`),
-
-  trigger: (params: {
-    flight_number: string;
-    crisis_type: string;
-    reason: string;
-    severity?: string;
-  }) => {
+  listActive: () => apiFetch<CrisisEvent[]>('/api/v1/crisis/active'),
+  getById: (id: number) => apiFetch<CrisisEvent>(`/api/v1/crisis/${id}`),
+  trigger: (params: { flight_number: string; crisis_type: string; reason: string; severity?: string }) => {
     const qs = new URLSearchParams({
       flight_number: params.flight_number,
       crisis_type: params.crisis_type,
       reason: params.reason,
       ...(params.severity ? { severity: params.severity } : {}),
     });
-    return apiFetch<CrisisEvent>(`/api/v1/crisis/trigger?${qs}`, { method: "POST" });
+    return apiFetch<CrisisEvent>(`/api/v1/crisis/trigger?${qs}`, { method: 'POST' });
   },
-
   approve: (crisisId: number) =>
-    apiFetch<{ message: string; crisis_id: number }>(
-      `/api/v1/crisis/${crisisId}/approve`,
-      { method: "POST" }
-    ),
-
-  getDecisions: (crisisId: number) =>
-    apiFetch<Decision[]>(`/api/v1/crisis/${crisisId}/decisions`),
-
-  getAudit: (crisisId: number) =>
-    apiFetch<AuditLog[]>(`/api/v1/crisis/${crisisId}/audit`),
+    apiFetch<{ message: string; crisis_id: number }>(`/api/v1/crisis/${crisisId}/approve`, { method: 'POST' }),
+  getDecisions: (crisisId: number) => apiFetch<Decision[]>(`/api/v1/crisis/${crisisId}/decisions`),
+  getAudit: (crisisId: number) => apiFetch<AuditLog[]>(`/api/v1/crisis/${crisisId}/audit`),
 };
-
-// ─── Flights API ──────────────────────────────────────────────────────────────
 
 export const flightsApi = {
   listAll: (origin?: string, destination?: string) => {
     const qs = new URLSearchParams();
-    if (origin) qs.set("origin", origin);
-    if (destination) qs.set("destination", destination);
+    if (origin) qs.set('origin', origin);
+    if (destination) qs.set('destination', destination);
     return apiFetch<Flight[]>(`/api/v1/flights?${qs}`);
   },
-
-  getById: (id: number) =>
-    apiFetch<Flight>(`/api/v1/flights/${id}`),
+  getById: (id: number) => apiFetch<Flight>(`/api/v1/flights/${id}`),
 };
-
-// ─── Passengers API ───────────────────────────────────────────────────────────
 
 export const passengersApi = {
   listAll: (skip = 0, limit = 100) =>
     apiFetch<Passenger[]>(`/api/v1/passengers?skip=${skip}&limit=${limit}`),
-
-  getById: (id: number) =>
-    apiFetch<Passenger>(`/api/v1/passengers/${id}`),
+  getById: (id: number) => apiFetch<Passenger>(`/api/v1/passengers/${id}`),
 };
 
-// ─── Stats API ────────────────────────────────────────────────────────────────
-
-export const statsApi = {
-  get: () => apiFetch<Stats>("/api/v1/stats"),
+export const auditApi = {
+  listAll: (skip = 0, limit = 100) =>
+    apiFetch<AuditLog[]>(`/api/v1/audit?skip=${skip}&limit=${limit}`),
+  recent: (limit = 20) =>
+    apiFetch<AuditLog[]>(`/api/v1/iocc/audit/recent?limit=${limit}`),
 };
 
-// ─── Health API ───────────────────────────────────────────────────────────────
+export const ioccApi = {
+  dashboard: () => apiFetch<IOCCDashboard>('/api/v1/iocc/dashboard'),
+  auditRecent: (limit = 15) => apiFetch<AuditLog[]>(`/api/v1/iocc/audit/recent?limit=${limit}`),
+  approveAll: (crisisId: number) =>
+    apiFetch<{ message: string }>(`/api/v1/iocc/crisis/${crisisId}/approve-all`, { method: 'POST' }),
+  simulate: (params: { flight_number: string; disruption_type: string; delay_minutes: number }) => {
+    const qs = new URLSearchParams({
+      flight_number: params.flight_number,
+      disruption_type: params.disruption_type,
+      delay_minutes: String(params.delay_minutes),
+    });
+    return apiFetch<SimResult>(`/api/v1/iocc/scenario/simulate?${qs}`, { method: 'POST' });
+  },
+};
 
-export const healthApi = {
-  check: () => apiFetch<{ status: string }>("/health"),
-  ready: () => apiFetch<{ ready: boolean }>("/health/ready"),
+export const hubApi = {
+  atRisk: () => apiFetch<{ count: number; connections: ConnectionRecord[] }>('/api/v1/hub/connections/at-risk'),
+  missed: () => apiFetch<{ count: number; connections: ConnectionRecord[] }>('/api/v1/hub/connections/missed'),
+  summary: () => apiFetch<ConnectionSummary>('/api/v1/hub/connections/summary'),
+  activeFlights: () => apiFetch<Flight[]>('/api/v1/hub/flights/active'),
+};
+
+export const pccApi = {
+  atRisk: (limit = 50) =>
+    apiFetch<{ count: number; passengers: AtRiskPassenger[] }>(`/api/v1/pcc/passengers/at-risk?limit=${limit}`),
+  summary: () => apiFetch<PCCSummary>('/api/v1/pcc/summary'),
+  recover: (pnr: string) =>
+    apiFetch<{ message: string }>(`/api/v1/pcc/passengers/${pnr}/recover`, { method: 'POST' }),
+};
+
+export const revenueApi = {
+  summary: () => apiFetch<ImpactSummary>('/api/v1/revenue/impact/summary'),
+  byCrisis: (limit = 15) => apiFetch<CrisisImpact[]>(`/api/v1/revenue/impact/by-crisis?limit=${limit}`),
+  byClass: () => apiFetch<ClassBreakdown[]>('/api/v1/revenue/impact/by-class'),
+  efficiency: () => apiFetch<Efficiency>('/api/v1/revenue/efficiency'),
 };
