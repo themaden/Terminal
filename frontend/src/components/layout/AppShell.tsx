@@ -20,6 +20,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const isPublic = NO_SHELL.includes(pathname ?? '');
   const isOptimization = pathname === '/optimization';
+  const isFullHeight = pathname === '/dashboard';
 
   // Loading spinner
   if (!ready) {
@@ -52,7 +53,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return <div style={{ background: '#020d1a', minHeight: '100vh' }}>{children}</div>;
   }
 
-  // Full-screen pages (optimization)
+  // Full-screen pages (optimization) — no shell
   if (isOptimization) {
     return (
       <div style={{ background: '#020d1a', width: '100vw', height: '100vh', overflow: 'hidden' }}>
@@ -61,7 +62,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Main shell: sidebar + topbar + scrollable content
+  // Main shell: sidebar + topbar + content
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg-base)' }}>
       <Sidebar />
@@ -70,11 +71,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <main
           style={{
             flex: 1,
-            overflowY: 'auto',
-            padding: '24px 28px',
+            overflow: 'hidden',
             display: 'flex',
             flexDirection: 'column',
-            gap: 20,
+            ...(isFullHeight
+              ? { padding: 0 }
+              : { overflowY: 'auto', padding: '24px 28px', gap: 20 }),
           }}
         >
           {children}
