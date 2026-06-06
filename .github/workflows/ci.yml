@@ -146,17 +146,22 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
       - name: Install dependencies
         working-directory: frontend
-        run: npm install --legacy-peer-deps
+        run: pnpm install
 
       - name: Type check
         working-directory: frontend
-        run: npx tsc --noEmit || true
+        run: pnpm exec tsc --noEmit || true
 
       - name: Build
         working-directory: frontend
-        run: npm run build
+        run: pnpm build
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8000
           NEXT_PUBLIC_WS_URL: ws://localhost:8000
