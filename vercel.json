@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "buildCommand": "cd frontend && pnpm install && pnpm build",
-  "outputDirectory": "frontend/.next",
-  "installCommand": "cd frontend && pnpm install",
+  "rootDirectory": "frontend",
+  "buildCommand": "npm run build",
+  "installCommand": "npm install --legacy-peer-deps",
   "framework": "nextjs"
 }
