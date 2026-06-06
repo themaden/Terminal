@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"log"
@@ -11,7 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/segmentio/kafka-go"
+	kafka "github.com/segmentio/kafka-go"
 )
 
 type FlightEvent struct {
@@ -25,7 +26,11 @@ type FlightEvent struct {
 	Timestamp          time.Time `json:"timestamp"`
 }
 
-var kafkaWriter *kafka.Writer
+var (
+	kafkaWriter        *kafka.Writer
+	kafkaEnabled       bool
+	decisionEngineURL  string
+)
 
 func main() {
 	port := os.Getenv("PORT")
@@ -33,25 +38,37 @@ func main() {
 		port = "8002"
 	}
 
+	decisionEngineURL = os.Getenv("DECISION_ENGINE_URL")
+	if decisionEngineURL == "" {
+		decisionEngineURL = "http://localhost:8000"
+	}
+
 	kafkaBrokers := os.Getenv("KAFKA_BOOTSTRAP_SERVERS")
 	if kafkaBrokers == "" {
 		kafkaBrokers = "localhost:9092"
 	}
 
-	// Initialize Kafka Writer
+	// Kafka bağlantısını dene — başarısız olursa HTTP fallback devreye girer
 	kafkaWriter = &kafka.Writer{
-		Addr:     kafka.TCP(kafkaBrokers),
-		Topic:    "flight-events",
-		Balancer: &kafka.LeastBytes{},
+		Addr:         kafka.TCP(kafkaBrokers),
+		Topic:        "flight-events",
+		Balancer:     &kafka.LeastBytes{},
+		MaxAttempts:  1,
+		WriteTimeout: 2 * time.Second,
 	}
-	defer kafkaWriter.Close()
+	kafkaEnabled = checkKafkaConnection(kafkaBrokers)
+	if kafkaEnabled {
+		log.Printf("Kafka connected: %s", kafkaBrokers)
+		defer kafkaWriter.Close()
+	} else {
+		log.Printf("Kafka unavailable (%s) — HTTP fallback to decision engine active", kafkaBrokers)
+	}
 
 	r := gin.Default()
 
-	// API Auth middleware
 	apiKey := os.Getenv("API_KEY")
 	if apiKey == "" {
-		apiKey = "aero-agent-api-key-dev"
+		apiKey = "jetnexus-api-key-dev"
 	}
 
 	authMiddleware := func(c *gin.Context) {
@@ -64,17 +81,17 @@ func main() {
 		c.Next()
 	}
 
-	// Routes
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
-			"status":      "healthy",
-			"microservice": "Aero-Agent Ingestion (Go)",
+			"status":          "healthy",
+			"microservice":    "JetNexus AI Ingestion Service (Go)",
+			"kafka_enabled":   kafkaEnabled,
+			"fallback_target": decisionEngineURL,
 		})
 	})
 
 	r.POST("/webhook/flight-event", authMiddleware, handleFlightEvent)
 
-	// Graceful shutdown
 	srv := &http.Server{
 		Addr:    ":" + port,
 		Handler: r,
@@ -90,15 +107,24 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("Shutting down Ingestion Webhook Service...")
+	log.Println("Shutting down Ingestion Service...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatal("Server Shutdown forced:", err)
+		log.Fatal("Server forced shutdown:", err)
 	}
-
 	log.Println("Ingestion Service exited cleanly.")
+}
+
+// checkKafkaConnection — Kafka'nın gerçekten erişilebilir olup olmadığını test eder.
+func checkKafkaConnection(broker string) bool {
+	conn, err := kafka.DialContext(context.Background(), "tcp", broker)
+	if err != nil {
+		return false
+	}
+	conn.Close()
+	return true
 }
 
 func handleFlightEvent(c *gin.Context) {
@@ -112,30 +138,83 @@ func handleFlightEvent(c *gin.Context) {
 		event.Timestamp = time.Now()
 	}
 
-	// Serialize event to JSON
 	payload, err := json.Marshal(event)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to marshal flight event"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to marshal event"})
 		return
 	}
 
-	// Publish to Apache Kafka
-	err = kafkaWriter.WriteMessages(context.Background(),
-		kafka.Message{
-			Key:   []byte(event.FlightNumber),
-			Value: payload,
-		},
-	)
-
-	if err != nil {
-		log.Printf("Error publishing to Kafka: %v", err)
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Message Broker Offline", "details": err.Error()})
-		return
+	if kafkaEnabled {
+		// Kafka yolu
+		err = kafkaWriter.WriteMessages(context.Background(),
+			kafka.Message{
+				Key:   []byte(event.FlightNumber),
+				Value: payload,
+			},
+		)
+		if err != nil {
+			log.Printf("Kafka write failed for %s: %v — falling back to HTTP", event.FlightNumber, err)
+			kafkaEnabled = false // bir sonraki event'ten itibaren fallback kullan
+		}
 	}
 
-	log.Printf("Flight crisis event ingested for flight %s: %s", event.FlightNumber, event.Reason)
+	if !kafkaEnabled {
+		// HTTP fallback — doğrudan Decision Engine API'ye gönder
+		if err := forwardToDecisionEngine(event); err != nil {
+			log.Printf("HTTP fallback also failed for %s: %v", event.FlightNumber, err)
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"error":   "Both Kafka and HTTP fallback unavailable",
+				"details": err.Error(),
+			})
+			return
+		}
+		log.Printf("Event forwarded via HTTP for flight %s", event.FlightNumber)
+	} else {
+		log.Printf("Event published to Kafka for flight %s: %s", event.FlightNumber, event.Reason)
+	}
+
 	c.JSON(http.StatusAccepted, gin.H{
-		"message": "Flight event accepted and queued for decision processing.",
+		"message":  "Flight event accepted and queued for decision processing.",
 		"event_id": event.EventID,
+		"channel":  map[bool]string{true: "kafka", false: "http_fallback"}[kafkaEnabled],
 	})
+}
+
+// forwardToDecisionEngine — Kafka yokken event'i HTTP üzerinden iletir.
+func forwardToDecisionEngine(event FlightEvent) error {
+	url := decisionEngineURL + "/api/v1/crisis/trigger" +
+		"?flight_number=" + event.FlightNumber +
+		"&crisis_type=" + mapEventType(event.EventType) +
+		"&reason=" + event.Reason +
+		"&severity=HIGH"
+
+	req, err := http.NewRequestWithContext(
+		context.Background(), http.MethodPost, url, bytes.NewBuffer(nil),
+	)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return nil
+}
+
+// mapEventType — Webhook event tipini kriz tipine dönüştürür.
+func mapEventType(eventType string) string {
+	switch eventType {
+	case "CANCELLATION":
+		return "CANCELLATION"
+	case "DELAY":
+		return "DELAY"
+	case "DIVERSION":
+		return "DIVERSION"
+	default:
+		return "DELAY"
+	}
 }

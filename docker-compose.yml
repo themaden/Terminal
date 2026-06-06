@@ -175,7 +175,7 @@ services:
     depends_on:
       - decision-engine
     volumes:
-      - ./frontend/src:/app/src
+      - ./frontend/app:/app/app
       - ./frontend/public:/app/public
     networks:
       - jetnexus-network
