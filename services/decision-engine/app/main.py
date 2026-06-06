@@ -21,6 +21,7 @@ from app.api.routes.call_center import router as call_center_router
 from app.api.routes.departure_hold import router as departure_hold_router
 from app.api.routes.proactive import router as proactive_router
 from app.api.routes.demo import router as demo_router
+from app.api.routes.ws import router as ws_router
 from app.config import settings
 from app.db.database import Base, engine, get_db
 from app.db.models import AuditLogDB, CrisisDB, DecisionDB, FlightDB, PassengerDB
@@ -61,6 +62,7 @@ app.include_router(call_center_router)
 app.include_router(departure_hold_router)
 app.include_router(proactive_router)
 app.include_router(demo_router)
+app.include_router(ws_router)
 
 # ── Root redirect ─────────────────────────────────────────
 @app.get("/", include_in_schema=False)

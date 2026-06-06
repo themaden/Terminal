@@ -7,6 +7,9 @@ class Settings(BaseSettings):
     # ── Veritabanı ────────────────────────────────────────────────────────────
     DATABASE_URL: str = "sqlite+aiosqlite:///aeroagent.sqlite3"
 
+    # ── Redis ─────────────────────────────────────────────────────────────────
+    REDIS_URL: str = "redis://localhost:6379/0"
+
     # ── Uygulama ──────────────────────────────────────────────────────────────
     APP_NAME: str = "JetNexus AI"
     APP_ENV: str = "development"
