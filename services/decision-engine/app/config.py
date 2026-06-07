@@ -40,6 +40,14 @@ class Settings(BaseSettings):
     CIRIUM_APP_ID: str = "your_cirium_app_id"
     CIRIUM_APP_KEY: str = "your_cirium_app_key"
 
+    # ── Bildirimler (isteğe bağlı — boşsa mock/console log) ──────────────────
+    NOTIFICATION_SERVICE_URL: str = "http://localhost:8001"
+    TWILIO_ACCOUNT_SID: str = ""
+    TWILIO_AUTH_TOKEN: str = ""
+    TWILIO_FROM_NUMBER: str = "+15551234567"
+    TWILIO_WHATSAPP_FROM: str = "whatsapp:+14155238886"
+    SENDGRID_API_KEY: str = ""
+
     # ── CORS ──────────────────────────────────────────────────────────────────
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:8000,https://*.vercel.app,https://jetnexus.vercel.app"
 

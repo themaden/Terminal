@@ -126,7 +126,30 @@ _MESSAGE_TEMPLATES = {
 
 
 async def _send_twilio(phone: str, message: str, channel: str) -> dict:
-    """Twilio API çağrısı — key yoksa mock döner."""
+    """Bildirimi önce notification-service mikroservisine yönlendirir
+    (docker-compose/k8s'te zaten ayakta); o servise ulaşılamazsa Twilio'ya
+    doğrudan bağlanır, key de yoksa mock döner."""
+    notification_url = getattr(settings, "NOTIFICATION_SERVICE_URL", "")
+    if notification_url:
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=8) as client:
+                resp = await client.post(
+                    f"{notification_url}/api/v1/notify",
+                    json={
+                        "passenger_name": "Passenger",
+                        "phone_number": phone,
+                        "channel": "WHATSAPP" if channel == "whatsapp" else "SMS",
+                        "message_tr": message,
+                        "message_en": message,
+                    },
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                return {"status": data.get("status", "sent"), "provider": "notification-service", "sid": data.get("sid", "")}
+        except Exception:
+            pass  # servis ayakta değil — doğrudan Twilio/mock'a düş
+
     account_sid = getattr(settings, "TWILIO_ACCOUNT_SID", "")
     auth_token  = getattr(settings, "TWILIO_AUTH_TOKEN", "")
     from_number = getattr(settings, "TWILIO_FROM_NUMBER", "+15551234567")
@@ -206,7 +229,7 @@ async def notify_crisis_passengers(
             message=f"JetNexus AI: {pax.first_name}, uçuşunuz etkilendi. jetnexus.ai/ss/{pax.pnr}",
             channel=channel,
         )
-        if result.get("status") in ("sent", "mock_sent"):
+        if result.get("status") in ("sent", "mock_sent", "mock_sent_to_console"):
             sent += 1
 
     return {"crisis_id": crisis_id, "total_passengers": len(rows), "notifications_sent": sent, "channel": channel}
