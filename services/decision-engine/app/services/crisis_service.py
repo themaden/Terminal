@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +11,12 @@ from app.models.flight import Flight, FlightStatus
 from app.models.passenger import Passenger, TicketClass
 from app.optimization.solver import CrisisSolver, OptimizationInput
 from app.regulations.eu261 import EU261Calculator
+
+
+# Minimum time a passenger needs to be rebooked and reach the gate of a
+# replacement flight — alternatives departing sooner than this after the
+# original flight's scheduled departure aren't operationally reachable.
+MIN_REBOOKING_BUFFER = timedelta(minutes=90)
 
 
 class CrisisService:
@@ -72,13 +78,16 @@ class CrisisService:
         session.add(crisis_db)
         await session.flush() # Get ID
 
-        # 3. Find alternative recovery flights
+        # 3. Find alternative recovery flights — must depart late enough after
+        # the original departure for passengers to actually be rebooked onto them
+        earliest_departure = affected_flight.scheduled_departure + MIN_REBOOKING_BUFFER
         alt_flights_result = await session.execute(
             select(FlightDB).where(
                 FlightDB.origin == affected_flight.origin,
                 FlightDB.destination == affected_flight.destination,
                 FlightDB.status == FlightStatus.SCHEDULED,
-                FlightDB.flight_number != flight_number
+                FlightDB.flight_number != flight_number,
+                FlightDB.scheduled_departure >= earliest_departure,
             )
         )
         alt_flights = alt_flights_result.scalars().all()
@@ -268,13 +277,15 @@ class CrisisService:
         await session.execute(delete(DecisionDB).where(DecisionDB.crisis_id == crisis_id))
         await session.execute(delete(AuditLogDB).where(AuditLogDB.crisis_id == crisis_id))
 
-        # 4. Find alternative recovery flights
+        # 4. Find alternative recovery flights — same reachability rule as trigger_crisis
+        earliest_departure = affected_flight.scheduled_departure + MIN_REBOOKING_BUFFER
         alt_flights_result = await session.execute(
             select(FlightDB).where(
                 FlightDB.origin == affected_flight.origin,
                 FlightDB.destination == affected_flight.destination,
                 FlightDB.status == FlightStatus.SCHEDULED,
-                FlightDB.flight_number != affected_flight.flight_number
+                FlightDB.flight_number != affected_flight.flight_number,
+                FlightDB.scheduled_departure >= earliest_departure,
             )
         )
         alt_flights = alt_flights_result.scalars().all()
