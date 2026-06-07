@@ -169,7 +169,42 @@ class CrisisService:
         session.add(audit)
 
         await session.commit()
+        await CrisisService._publish_snapshot(session)
+
         return CrisisEvent.model_validate(crisis_db)
+
+    @staticmethod
+    async def _publish_snapshot(session: AsyncSession) -> dict:
+        """Recompute the crisis snapshot, cache it in Redis and broadcast it
+        over the /ws/crisis channel so newly-connecting and live clients agree."""
+        from app.core.redis import cache_set
+        from app.api.routes.ws import push_crisis_update
+
+        active_result = await session.execute(
+            select(CrisisDB).where(CrisisDB.status == CrisisStatus.ACTIVE)
+        )
+        active = active_result.scalars().all()
+        pending_result = await session.execute(
+            select(DecisionDB).where(DecisionDB.status == DecisionStatus.PENDING)
+        )
+        pending_count = len(pending_result.scalars().all())
+
+        snapshot = {
+            "active_crises": [
+                {
+                    "id": c.id,
+                    "crisis_type": c.crisis_type.value,
+                    "severity": c.severity.value,
+                    "status": c.status.value,
+                    "affected_passengers": c.affected_passenger_count,
+                }
+                for c in active
+            ],
+            "pending_approvals": pending_count,
+        }
+        await cache_set("crisis:snapshot", snapshot, ttl=300)
+        await push_crisis_update(snapshot)
+        return snapshot
 
     @staticmethod
     async def approve_decisions(session: AsyncSession, crisis_id: int) -> bool:
@@ -197,6 +232,8 @@ class CrisisService:
         )
         session.add(audit)
         await session.commit()
+        await CrisisService._publish_snapshot(session)
+
         return True
 
     @staticmethod

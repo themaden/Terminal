@@ -13,6 +13,7 @@ import {
   dashboardApi, crisisApi, pccApi, flightsApi,
   type DashboardStats, type Crisis, type PccPassenger, type Flight,
 } from "@/lib/api"
+import { useCrisisUpdates } from "@/lib/ws"
 import { Zap, Loader2, AlertTriangle, Plane } from "lucide-react"
 
 // ── Statik görsel veri ────────────────────────────────────────────────────────
@@ -168,6 +169,10 @@ export default function DashboardPage() {
     const interval = setInterval(fetchAll, 15_000)
     return () => clearInterval(interval)
   }, [fetchAll])
+
+  // Backend pushes crisis_update events over /ws/crisis — refresh immediately
+  // instead of waiting up to 15s for the next poll.
+  useCrisisUpdates(fetchAll)
 
   // Ticker rotation
   useEffect(() => {
