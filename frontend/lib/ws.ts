@@ -74,3 +74,21 @@ export function useCrisisUpdates(onUpdate: () => void) {
     })
   }, [])
 }
+
+/**
+ * Subscribes to the live flight channel and invokes `onUpdate` whenever the
+ * backend pushes a flight_update event (status changes from the Cirium poll
+ * or a freshly triggered crisis) — keeps the flight map/list in sync in real time.
+ */
+export function useFlightUpdates(onUpdate: () => void) {
+  const callbackRef = useRef(onUpdate)
+  callbackRef.current = onUpdate
+
+  useEffect(() => {
+    return connectSocket("/ws/flights", (msg) => {
+      if (msg.type === "flight_update") {
+        callbackRef.current()
+      }
+    })
+  }, [])
+}

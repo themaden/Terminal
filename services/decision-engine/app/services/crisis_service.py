@@ -180,6 +180,15 @@ class CrisisService:
         await session.commit()
         await CrisisService._publish_snapshot(session)
 
+        from app.api.routes.ws import push_flight_update
+        await push_flight_update({
+            "flight_id": affected_flight.id,
+            "flight_number": affected_flight.flight_number,
+            "origin": affected_flight.origin,
+            "destination": affected_flight.destination,
+            "status": affected_flight.status.value,
+        })
+
         return CrisisEvent.model_validate(crisis_db)
 
     @staticmethod

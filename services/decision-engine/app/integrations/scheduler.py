@@ -95,14 +95,25 @@ async def _poll_flight_statuses():
             )
             flights = result.scalars().all()
             updated = 0
+            changed: list[FlightDB] = []
             for flight in flights:
                 status_data = await get_flight_status(flight.flight_number)
                 delay = status_data.get("departure_delay_minutes", 0)
                 if delay > 30 and flight.status == FlightStatus.SCHEDULED:
                     flight.status = FlightStatus.DELAYED
                     updated += 1
+                    changed.append(flight)
             if updated:
                 await session.commit()
+                from app.api.routes.ws import push_flight_update
+                for flight in changed:
+                    await push_flight_update({
+                        "flight_id": flight.id,
+                        "flight_number": flight.flight_number,
+                        "origin": flight.origin,
+                        "destination": flight.destination,
+                        "status": flight.status.value,
+                    })
             _last_run["flight_poll"] = datetime.utcnow().isoformat()
             logger.info("Flight status poll — %d updated", updated)
     except Exception as exc:
