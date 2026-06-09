@@ -8,7 +8,22 @@ from app.db.models import AuditLogDB, CrisisDB, DecisionDB, FlightDB, PassengerD
 from app.models.crisis import CrisisEvent, CrisisSeverity, CrisisStatus, CrisisType
 from app.models.decision import DecisionStatus
 from app.models.flight import Flight, FlightStatus
-from app.models.passenger import Passenger, TicketClass
+from app.models.passenger import LoyaltyTier, Passenger, TicketClass
+
+
+def _priority_tier(p: Passenger) -> int:
+    """Doküman §3 — 4-derece yolcu önceliği. Düşük sayı = daha önce işle."""
+    if getattr(p, "is_unaccompanied_minor", False) or getattr(p, "is_disabled", False):
+        return 1
+    if p.loyalty_tier in (LoyaltyTier.PLATINUM, LoyaltyTier.GOLD):
+        return 2
+    if getattr(p, "group_id", None):
+        return 3
+    return 4
+
+
+def _sort_by_priority_tier(passengers: list[Passenger]) -> list[Passenger]:
+    return sorted(passengers, key=_priority_tier)
 from app.optimization.solver import CrisisSolver, OptimizationInput
 from app.regulations.eu261 import EU261Calculator
 
@@ -93,7 +108,9 @@ class CrisisService:
         alt_flights = alt_flights_result.scalars().all()
 
         # Convert ORM to Pydantic models for Solver & Agents
-        pax_models = [Passenger.model_validate(p) for p in affected_pax]
+        # Doküman §5.1 Graceful Degradation: sistem yük altındayken 1. derece yolcuları önce işle
+        raw_pax = [Passenger.model_validate(p) for p in affected_pax]
+        pax_models = _sort_by_priority_tier(raw_pax)
         alt_flight_models = [Flight.model_validate(f) for f in alt_flights]
 
         # 4. Formulate MILP costs
@@ -299,7 +316,8 @@ class CrisisService:
         )
         alt_flights = alt_flights_result.scalars().all()
 
-        pax_models = [Passenger.model_validate(p) for p in affected_pax]
+        raw_pax2 = [Passenger.model_validate(p) for p in affected_pax]
+        pax_models = _sort_by_priority_tier(raw_pax2)
         alt_flight_models = [Flight.model_validate(f) for f in alt_flights]
 
         rebooking_costs = {}

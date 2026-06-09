@@ -1,9 +1,12 @@
 """Amadeus PSS Adapter — flight search, availability, pricing, PNR lookup."""
+import logging
 import random
 from datetime import datetime, timedelta
 from typing import Optional
 
 from app.integrations.amadeus.client import get_amadeus_client
+
+logger = logging.getLogger(__name__)
 
 # ─── Mock helpers ──────────────────────────────────────────────────────────────
 
@@ -133,17 +136,76 @@ async def get_flight_status_amadeus(flight_number: str, date: str) -> dict:
             scheduledDepartureDate=date,
         )
         d = response.data[0] if response.data else {}
+        flight_points = d.get("flightPoints") or []
+        departure_point = next((p for p in flight_points if "departure" in p), {})
+        timings = (departure_point.get("departure") or {}).get("timings") or []
+        scheduled = next((t.get("value") for t in timings if t.get("qualifier") == "STD"), None)
+        estimated = next((t.get("value") for t in timings if t.get("qualifier") in ("ETD", "ETA")), None)
+
+        delay_minutes = 0
+        if scheduled and estimated:
+            try:
+                delay_minutes = max(0, int((datetime.fromisoformat(estimated) - datetime.fromisoformat(scheduled)).total_seconds() // 60))
+            except ValueError:
+                delay_minutes = 0
+
+        designator = d.get("flightDesignator") or {}
         return {
             "flight_number": flight_number,
             "source": "amadeus_live",
             "date": date,
-            "status": d.get("flightDesignator", {}).get("operatingCarrierFlightNumber", "UNKNOWN"),
-            "raw": d,
+            "status": "DELAYED" if delay_minutes > 15 else "SCHEDULED",
+            "departure_delay_minutes": delay_minutes,
+            "scheduled_departure": scheduled,
+            "estimated_departure": estimated,
+            "carrier_code": designator.get("carrierCode", iata_code),
+            "operating_flight_number": designator.get("flightNumber", number),
         }
-    except Exception:
+    except Exception as exc:
+        logger.warning("Amadeus flight status error for %s: %s", flight_number, exc)
         return {"flight_number": flight_number, "source": "amadeus_mock_fallback", "date": date, "status": "UNKNOWN"}
 
 
 async def lookup_pnr(pnr: str) -> dict:
-    """Look up a PNR record via Amadeus (sandbox: always returns mock)."""
-    return _mock_pnr_record(pnr)
+    """Look up a PNR / flight order record via Amadeus (live if configured, else mock)."""
+    client = get_amadeus_client()
+    if client is None:
+        return _mock_pnr_record(pnr)
+    try:
+        response = client.booking.flight_order(pnr).get()
+        order = response.data or {}
+        travelers = order.get("travelers") or []
+        traveler = travelers[0] if travelers else {}
+        name = traveler.get("name") or {}
+        documents = traveler.get("documents") or []
+
+        segments = []
+        for offer in order.get("flightOffers") or []:
+            for itinerary in offer.get("itineraries") or []:
+                for seg in itinerary.get("segments") or []:
+                    departure = seg.get("departure") or {}
+                    arrival = seg.get("arrival") or {}
+                    segments.append({
+                        "flight_number": f"{seg.get('carrierCode', '')}{seg.get('number', '')}",
+                        "origin": departure.get("iataCode", ""),
+                        "destination": arrival.get("iataCode", ""),
+                        "departure": departure.get("at", ""),
+                        "status": "HK",
+                    })
+
+        creation_date = ((order.get("associatedRecords") or [{}])[0]).get("creationDateTime", "")
+        return {
+            "pnr": pnr.upper(),
+            "source": "amadeus_live",
+            "passenger_name": (f"{name.get('firstName', '')} {name.get('lastName', '')}".strip() or "UNKNOWN"),
+            "ticket_number": documents[0].get("number", "") if documents else "",
+            "booking_class": "",
+            "fare_basis": "",
+            "ticketing_date": creation_date[:10] if creation_date else "",
+            "segments": segments or _mock_pnr_record(pnr)["segments"],
+            "ssr_codes": [],
+            "ssrf": False,
+        }
+    except Exception as exc:
+        logger.warning("Amadeus PNR lookup error for %s: %s", pnr, exc)
+        return _mock_pnr_record(pnr)

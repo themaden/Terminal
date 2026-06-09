@@ -63,8 +63,27 @@ class Settings(BaseSettings):
     def ollama_configured(self) -> bool:
         return self.OLLAMA_BASE_URL != ""
 
+    @staticmethod
+    def _is_placeholder(value: str) -> bool:
+        if not value:
+            return True
+        upper = value.strip().upper()
+        return upper.startswith("BURAYA") or upper in (
+            "SANDBOX_CLIENT_ID", "SANDBOX_CLIENT_SECRET",
+            "YOUR_CIRIUM_APP_ID", "YOUR_CIRIUM_APP_KEY",
+        )
+
+    @property
+    def amadeus_configured(self) -> bool:
+        return not self._is_placeholder(self.AMADEUS_CLIENT_ID) and not self._is_placeholder(self.AMADEUS_CLIENT_SECRET)
+
+    @property
+    def cirium_configured(self) -> bool:
+        return not self._is_placeholder(self.CIRIUM_APP_ID) and not self._is_placeholder(self.CIRIUM_APP_KEY)
+
+    # app/config.py -> app -> decision-engine -> services -> <repo root>/.env
     model_config = SettingsConfigDict(
-        env_file=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env"),
+        env_file=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )

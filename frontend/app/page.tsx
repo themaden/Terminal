@@ -10,11 +10,17 @@ import { PassengerTable } from "@/components/dashboard/passenger-table"
 import { HotelCapacityChart } from "@/components/dashboard/hotel-chart"
 import { BusQueueTable } from "@/components/dashboard/bus-queue"
 import {
-  dashboardApi, crisisApi, pccApi, flightsApi,
+  dashboardApi, crisisApi, pccApi, flightsApi, recoveryApi,
   type DashboardStats, type Crisis, type PccPassenger, type Flight,
+  type RecoveryPlan,
 } from "@/lib/api"
 import { useCrisisUpdates, useFlightUpdates } from "@/lib/ws"
 import { Zap, Loader2, AlertTriangle, Plane } from "lucide-react"
+import { IrropsSimulator } from "@/components/dashboard/irrops-simulator"
+import { ThreatRadar } from "@/components/dashboard/threat-radar"
+import { CostMeter } from "@/components/dashboard/cost-meter"
+import { CrisisExplainer } from "@/components/dashboard/crisis-explainer"
+import { RecoveryTimeline } from "@/components/dashboard/recovery-timeline"
 
 // ── Statik görsel veri ────────────────────────────────────────────────────────
 
@@ -152,6 +158,7 @@ export default function DashboardPage() {
   const [triggerLoading, setTriggerLoading] = useState(false)
   const [triggerMsg, setTriggerMsg] = useState<string | null>(null)
   const [tickerIdx, setTickerIdx] = useState(0)
+  const [recoveryPlan, setRecoveryPlan] = useState<RecoveryPlan | null>(null)
 
   const fetchAll = useCallback(async () => {
     try {
@@ -159,7 +166,14 @@ export default function DashboardPage() {
       setStats(s); setCrises(c); setFlights(f)
       if (c.length > 0) {
         try { setPassengers(await pccApi.atRisk()) } catch { /* kriz yoksa boş */ }
-      } else { setPassengers([]) }
+        try {
+          const plan = await recoveryApi.plan(String(c[0].id))
+          setRecoveryPlan(plan)
+        } catch { /* ignore */ }
+      } else {
+        setPassengers([])
+        setRecoveryPlan(null)
+      }
     } catch (e) { console.error("API hatası:", e) }
     finally { setLoading(false) }
   }, [])
@@ -185,7 +199,7 @@ export default function DashboardPage() {
     setTriggerLoading(true); setTriggerMsg(null)
     try {
       await crisisApi.trigger({ flight_number: flightNumber, crisis_type: type, severity: "high",
-        description: `IRROPS Demo — ${flightNumber} ${type}` })
+        reason: `IRROPS Demo — ${flightNumber} ${type}` })
       setTriggerMsg(`✓ ${flightNumber} krizi tetiklendi — AI kararlar üretiyor...`)
       setTimeout(() => { setTriggerMsg(null); fetchAll() }, 3000)
     } catch (e: unknown) {
@@ -289,6 +303,18 @@ export default function DashboardPage() {
 
       <Header />
 
+      {/* Cost Meter — EU261 canlı sayaç */}
+      {stats && (
+        <CostMeter
+          totalCompensationEur={stats.total_compensation_eur}
+          activeCrises={stats.crises.active}
+          affectedPassengers={stats.passengers}
+        />
+      )}
+
+      {/* Threat Radar strip + floating panel */}
+      <ThreatRadar onCrisisTriggered={fetchAll} />
+
       {/* AI Ticker */}
       <div className="flex items-center gap-3 px-4 py-1.5 bg-[#f7f7fa] border-b border-[#e8e8f0] shrink-0 overflow-hidden">
         <div className="flex items-center gap-1.5 shrink-0">
@@ -330,23 +356,44 @@ export default function DashboardPage() {
                   data={hotelData}
                   totalCapacity={1460}
                   available={995}
+                  crisisId={activeCrisisId || undefined}
+                  crisisHotels={recoveryPlan?.hotel_assignments}
                 />
                 <BusQueueTable
                   passengers={busPassengers}
                   tabs={busTabs.map(t => ({ ...t, count: crises.reduce((s, c) => s + (c.affected_passengers ?? 0), 0) }))}
+                  crisisId={activeCrisisId || undefined}
+                  busRoutes={recoveryPlan?.bus_routes}
                 />
               </div>
             </div>
 
-            <OperationalPanel
-              rules={operationalRules}
-              actions={operationalActions}
-              onRefresh={fetchAll}
-              hasCrisis={hasCrisis}
-            />
+            <div className="flex flex-col overflow-hidden">
+              <OperationalPanel
+                rules={operationalRules}
+                actions={operationalActions}
+                onRefresh={fetchAll}
+                hasCrisis={hasCrisis}
+              />
+              {hasCrisis && activeCrisisId && (
+                <div className="px-2 pb-2 flex flex-col gap-2 overflow-y-auto max-h-72">
+                  <CrisisExplainer
+                    crisisId={activeCrisisId}
+                    crisisType={crises[0]?.crisis_type?.toUpperCase() ?? "CANCELLATION"}
+                  />
+                  <RecoveryTimeline
+                    crisisId={activeCrisisId}
+                    crisisType={crises[0]?.crisis_type?.toUpperCase() ?? "CANCELLATION"}
+                    onRefresh={fetchAll}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
+
+      <IrropsSimulator flights={flights} onCrisisTriggered={fetchAll} />
     </div>
   )
 }

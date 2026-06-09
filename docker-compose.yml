@@ -103,6 +103,10 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - LLM_MODEL=${LLM_MODEL:-gpt-4o}
+      - AMADEUS_CLIENT_ID=${AMADEUS_CLIENT_ID:-sandbox_client_id}
+      - AMADEUS_CLIENT_SECRET=${AMADEUS_CLIENT_SECRET:-sandbox_client_secret}
+      - CIRIUM_APP_ID=${CIRIUM_APP_ID:-your_cirium_app_id}
+      - CIRIUM_APP_KEY=${CIRIUM_APP_KEY:-your_cirium_app_key}
       - NOTIFICATION_SERVICE_URL=http://notification-service:8001
       - APP_ENV=development
       - APP_DEBUG=true

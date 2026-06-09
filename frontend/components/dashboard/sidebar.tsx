@@ -7,6 +7,7 @@ import {
   Users, Hotel, Bus, FileText,
   ChevronDown, ChevronRight, Settings, User,
   MoreHorizontal, Activity, LayoutDashboard, Network, TrendingUp,
+  UserCheck, Luggage, GitFork,
 } from "lucide-react"
 
 interface Flight {
@@ -33,10 +34,13 @@ const NAV_ITEMS = [
 ]
 
 const SUB_NAV = [
-  { href: "/pcc",    icon: Users,    label: "Yolcu Yönetimi" },
-  { href: "/hotels", icon: Hotel,    label: "Otel Ortakları" },
-  { href: "/buses",  icon: Bus,      label: "Otobüs Filosu" },
-  { href: "/audit",  icon: FileText, label: "Operasyon Kayıtları" },
+  { href: "/pcc",     icon: Users,     label: "Yolcu Yönetimi" },
+  { href: "/crew",    icon: UserCheck, label: "Mürettebat" },
+  { href: "/baggage", icon: Luggage,   label: "Bagaj Takip" },
+  { href: "/impact",  icon: GitFork,   label: "Etki Grafiği" },
+  { href: "/hotels",  icon: Hotel,     label: "Otel Ortakları" },
+  { href: "/buses",   icon: Bus,       label: "Otobüs Filosu" },
+  { href: "/audit",   icon: FileText,  label: "Operasyon Kayıtları" },
 ]
 
 export function Sidebar({ activeDisruptions, onFlightSelect }: SidebarProps) {

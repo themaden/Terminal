@@ -28,5 +28,11 @@ class Passenger(BaseModel):
     booking_reference: str
     created_at: datetime | None = None
 
+    # Doküman §3 — öncelik hiyerarşisi sert kısıtları
+    is_unaccompanied_minor: bool = False   # 1. derece: onaysız çocuk
+    is_disabled: bool = False              # 1. derece: engelli yolcu
+    group_id: str | None = None           # 3. derece: aile/grup kodu (bölünme yasağı)
+    group_size: int = 1                   # gruptaki toplam kişi sayısı
+
     class Config:
         from_attributes = True

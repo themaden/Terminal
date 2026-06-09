@@ -40,6 +40,12 @@ class PassengerDB(Base):
     booking_reference = Column(String(100), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
+    # Doküman §3 — 4-derece öncelik hiyerarşisi alanları
+    is_unaccompanied_minor = Column(Boolean, default=False, nullable=False)
+    is_disabled = Column(Boolean, default=False, nullable=False)
+    group_id = Column(String(50), nullable=True, index=True)
+    group_size = Column(Integer, default=1, nullable=False)
+
     decisions = relationship("DecisionDB", back_populates="passenger")
 
 class FlightDB(Base):

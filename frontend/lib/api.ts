@@ -178,6 +178,50 @@ export interface Flight {
   aircraft_type: string
 }
 
+export interface WeatherThreat {
+  id: string
+  type: string
+  airport: string
+  severity: string
+  probability: number
+  time_to_impact_minutes: number
+  wind_speed_kt: number
+  visibility_m: number
+  affected_flights: string[]
+  description: string
+  recommended_action: string
+  auto_trigger_recommended: boolean
+}
+
+export interface WeatherForecast {
+  threats: WeatherThreat[]
+  imminent_count: number
+  total_affected_flights: number
+  forecast_horizon_minutes: number
+  generated_at: string
+  valid_until: string
+  narrative: string
+  source: string
+}
+
+export interface CrisisExplanation {
+  crisis_id: number
+  headline: string
+  bullets: string[]
+  ai_confidence: number
+  time_saved_minutes: number
+  cost_saved_eur: number
+  total_compensation_eur: number
+  rebooked: number
+  refunded: number
+  with_hotel: number
+  affected_passengers: number
+  flight: string
+  crisis_type: string
+  severity: string
+  reason: string
+}
+
 export interface VoucherPackage {
   pnr: string
   vouchers: { type: string; amount_eur: number; description: string }[]
@@ -220,12 +264,16 @@ export const crisisApi = {
     flight_number: string
     crisis_type: string
     severity: string
-    description?: string
-  }) =>
-    request<Crisis>('/api/v1/crisis/trigger', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
+    reason: string
+  }) => {
+    const p = new URLSearchParams({
+      flight_number: data.flight_number,
+      crisis_type: data.crisis_type.toUpperCase(),
+      severity: data.severity.toUpperCase(),
+      reason: data.reason,
+    })
+    return request<Crisis>(`/api/v1/crisis/trigger?${p}`, { method: 'POST' })
+  },
   approve: (id: string) =>
     request<void>(`/api/v1/crisis/${id}/approve`, { method: 'POST' }),
   updateStatus: (id: string, status: string) =>
@@ -235,6 +283,7 @@ export const crisisApi = {
     }),
   decisions: (id: string) => request<Decision[]>(`/api/v1/crisis/${id}/decisions`),
   audit: (id: string) => request<AuditLog[]>(`/api/v1/crisis/${id}/audit`),
+  explain: (id: string) => request<CrisisExplanation>(`/api/v1/crisis/${id}/explain`),
 }
 
 // ── PCC ────────────────────────────────────────────────────────────────────────
@@ -318,6 +367,9 @@ export const flightsApi = {
 export const predictionApi = {
   riskScores: () => request<RiskScore[]>('/api/v1/prediction/risk-scores'),
   summary: () => request<PredictionSummary>('/api/v1/prediction/summary'),
+  weatherForecast: () => request<WeatherForecast>('/api/v1/prediction/weather-forecast'),
+  autoProtect: (flightNumber: string, threatType: string) =>
+    request<unknown>(`/api/v1/prediction/auto-protect/${flightNumber}?threat_type=${threatType}`, { method: 'POST' }),
 }
 
 // ── Call Center ────────────────────────────────────────────────────────────────
@@ -366,6 +418,210 @@ export const departureHoldApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+}
+
+// ── Recovery ───────────────────────────────────────────────────────────────────
+
+export interface HotelAssignment {
+  hotel: string
+  terminal: string
+  tier: string
+  nightly_rate_eur: number
+  bus_eta_minutes: number
+  passenger_count: number
+  passengers: { pnr: string; name: string; ticket_class: string; loyalty_tier: string; compensation_eur: number }[]
+  rooms_needed: number
+  total_hotel_cost_eur: number
+  status: string
+}
+
+export interface BusRoute {
+  bus_id: string
+  route: string
+  hotel: string
+  terminal: string
+  assigned_passengers: number
+  capacity: number
+  eta_minutes: number
+  departure_in_minutes: number
+  status: string
+  driver: string
+}
+
+export interface RecoveryPlan {
+  crisis_id: number
+  flight_number: string
+  crisis_type: string
+  severity: string
+  reason: string
+  status: string
+  total_passengers: number
+  rebooked: number
+  refunded: number
+  hotel_needed: number
+  total_compensation_eur: number
+  hotel_assignments: HotelAssignment[]
+  bus_routes: BusRoute[]
+  timeline: { at: string; step: string; detail: string; status: string }[]
+  recovery_complete: boolean
+  generated_at: string
+}
+
+export const recoveryApi = {
+  plan: (crisisId: string) => request<RecoveryPlan>(`/api/v1/recovery/plan/${crisisId}`),
+  dispatchBus: (crisisId: string, busId: string) =>
+    request<{ bus_id: string; status: string; message: string }>(
+      `/api/v1/recovery/dispatch-bus/${crisisId}/${busId}`, { method: 'POST' }
+    ),
+  bookHotelBlock: (crisisId: string, hotelName: string, roomCount: number) =>
+    request<{ confirmation_code: string; status: string }>(
+      `/api/v1/recovery/book-hotel-block/${crisisId}?hotel_name=${encodeURIComponent(hotelName)}&room_count=${roomCount}`,
+      { method: 'POST' }
+    ),
+}
+
+// ── Crew Recovery ──────────────────────────────────────────────────────────────
+
+export interface CrewMember {
+  id: string
+  name: string
+  role: string
+  base: string
+  type_ratings: string[]
+  duty_hours_today: number
+  available: boolean
+  on_standby: boolean
+  legal_for_duty: boolean
+  remaining_duty_hours: number
+  current_flight: string | null
+}
+
+export interface CrewAssignment {
+  flight_number: string
+  aircraft_type: string
+  required_type_rating: string
+  captain: CrewMember | null
+  first_officer: CrewMember | null
+  cabin_crew: CrewMember[]
+  is_fully_crewed: boolean
+  deficit: string[]
+  legal_check_passed: boolean
+  assignment_confidence: number
+  assigned_at: string
+}
+
+export interface CrewRecoveryPlan {
+  flight_number: string
+  crisis_id: number | null
+  original_crew_status: string
+  recovery_actions: { step: number; action: string; detail: string; status: string }[]
+  replacement_crew: CrewAssignment
+  eta_to_brief_minutes: number
+  standby_crew_activated: number
+  message: string
+}
+
+export const crewApi = {
+  availability: (params?: { type_rating?: string; role?: string; base?: string }) => {
+    const qs = params ? `?${new URLSearchParams(params as Record<string, string>)}` : ''
+    return request<{ total_available: number; crew: (CrewMember & { legal_for_duty: boolean; remaining_duty_hours: number })[]; ftl_limits: Record<string, unknown> }>(`/api/v1/crew/availability${qs}`)
+  },
+  assign: (flightNumber: string) => request<CrewAssignment>(`/api/v1/crew/assign/${flightNumber}`),
+  recover: (flightNumber: string, crisisId?: number) => {
+    const qs = crisisId ? `?crisis_id=${crisisId}` : ''
+    return request<CrewRecoveryPlan>(`/api/v1/crew/recover/${flightNumber}${qs}`, { method: 'POST' })
+  },
+  legalCheck: (crewId: string) => request<unknown>(`/api/v1/crew/legal-check/${crewId}`),
+}
+
+// ── Baggage ────────────────────────────────────────────────────────────────────
+
+export interface BagStatus {
+  bag_tag: string
+  pnr: string
+  original_flight: string
+  status: string
+  at_risk: boolean
+  offload_reason: string | null
+  location: string
+  last_scan: string
+  iata_753_tracked: boolean
+}
+
+export interface ReconciliationReport {
+  crisis_id: number
+  total_passengers: number
+  bags_tracked: number
+  bags_at_risk: number
+  routing_orders_issued: number
+  iata_753_compliant: boolean
+  reconciliation_time_seconds: number
+  actions: { pnr: string; bag_tag: string; action: string; bag_status?: string; from?: string; to?: string }[]
+  generated_at: string
+}
+
+export const baggageApi = {
+  status: (pnr: string) => request<BagStatus>(`/api/v1/baggage/status/${pnr}`),
+  reroute: (pnr: string, fromFlight: string, toFlight: string) =>
+    request<unknown>(`/api/v1/baggage/reroute?pnr=${pnr}&from_flight=${fromFlight}&to_flight=${toFlight}`, { method: 'POST' }),
+  routingOrders: () => request<{ total: number; orders: unknown[] }>('/api/v1/baggage/routing-orders'),
+  reconcile: (crisisId: string) =>
+    request<ReconciliationReport>(`/api/v1/baggage/reconcile/${crisisId}`, { method: 'POST' }),
+}
+
+// ── Impact Graph ───────────────────────────────────────────────────────────────
+
+export interface PassengerImpact {
+  pnr: string
+  name: string
+  impact_type: string
+  priority_tier: number
+  is_unaccompanied_minor: boolean
+  is_disabled: boolean
+  group_id: string | null
+  original_flight: string
+  connecting_flight: string | null
+  connection_at_risk: boolean
+  compensation_eur: number
+  recovery_status: string
+}
+
+export interface ImpactGraph {
+  crisis_id: number
+  flight_number: string
+  route: string
+  total_onboard: number
+  truly_affected: number
+  missed_connections: number
+  family_split_risks: number
+  cascaded_flights: number
+  tier1_passengers: number
+  tier2_passengers: number
+  tier3_passengers: number
+  tier4_passengers: number
+  passenger_impacts: PassengerImpact[]
+  family_groups: { group_id: string; size: number; members: string[]; split_risk: boolean; same_flight_possible: boolean }[]
+  domino_chain: { flight_number: string; route: string; delay_minutes: number; affected_passengers: number; cascade_depth: number }[]
+  total_eu261_liability_eur: number
+  narrative: string
+  computed_at: string
+}
+
+export const impactApi = {
+  graph: (crisisId: string) => request<ImpactGraph>(`/api/v1/impact/${crisisId}`),
+  preview: (flightNumber: string, delayMinutes = 60) =>
+    request<unknown>(`/api/v1/impact/flight/${flightNumber}/preview?delay_minutes=${delayMinutes}`),
+}
+
+// ── Soft Hold / Scenario Pool ──────────────────────────────────────────────────
+
+export const scenarioApi = {
+  softHold: (flightNumber: string, seats = 10) =>
+    request<unknown>(`/api/v1/prediction/soft-hold/${flightNumber}?seats_to_hold=${seats}`, { method: 'POST' }),
+  softHolds: () => request<{ total: number; active: number; holds: unknown[] }>('/api/v1/prediction/soft-holds'),
+  computeScenario: (flightNumber: string) =>
+    request<unknown>(`/api/v1/prediction/scenario-pool/${flightNumber}`, { method: 'POST' }),
+  scenarioPool: () => request<{ total_scenarios: number; ready_scenarios: number; scenarios: unknown[] }>('/api/v1/prediction/scenario-pool'),
 }
 
 // ── Health ─────────────────────────────────────────────────────────────────────

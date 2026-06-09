@@ -84,7 +84,7 @@ def _mock_arrivals(airport: str, n: int = 12) -> list[dict]:
 
 async def get_flight_status(flight_number: str, carrier: Optional[str] = None) -> dict:
     """Fetch real-time flight status from Cirium (fallback: mock)."""
-    if not settings.CIRIUM_APP_ID or settings.CIRIUM_APP_ID == "your_cirium_app_id":
+    if not settings.cirium_configured:
         return _mock_flight_status(flight_number)
 
     iata = carrier or flight_number[:2]
@@ -112,7 +112,7 @@ async def get_flight_status(flight_number: str, carrier: Optional[str] = None) -
 
 async def get_departures(airport: str, n: int = 12) -> list[dict]:
     """Get live departure board for an airport."""
-    if not settings.CIRIUM_APP_ID or settings.CIRIUM_APP_ID == "your_cirium_app_id":
+    if not settings.cirium_configured:
         return _mock_departures(airport, n)
     try:
         now = datetime.utcnow()
@@ -148,6 +148,35 @@ async def get_departures(airport: str, n: int = 12) -> list[dict]:
 
 async def get_arrivals(airport: str, n: int = 12) -> list[dict]:
     """Get live arrival board for an airport."""
-    if not settings.CIRIUM_APP_ID or settings.CIRIUM_APP_ID == "your_cirium_app_id":
+    if not settings.cirium_configured:
         return _mock_arrivals(airport, n)
+    try:
+        now = datetime.utcnow()
+        url = (
+            f"{CIRIUM_BASE}/flightstatus/rest/v2/json/airport/arrivals/{airport}/"
+            f"{now.year}/{now.month}/{now.day}/{now.hour}/hourOfDay/1"
+            f"?appId={settings.CIRIUM_APP_ID}&appKey={settings.CIRIUM_APP_KEY}&numHours=3&maxFlights={n}"
+        )
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(url)
+            if resp.status_code == 200:
+                data = resp.json()
+                flights = data.get("scheduledFlights", [])
+                return [
+                    {
+                        "source": "cirium_live",
+                        "flight_number": f["carrierFsCode"] + str(f["flightNumber"]),
+                        "airline": f["carrierFsCode"],
+                        "origin": f["departureAirportFsCode"],
+                        "scheduled_arrival": f.get("arrivalTime", ""),
+                        "estimated_arrival": f.get("arrivalTime", ""),
+                        "delay_minutes": 0,
+                        "status": f.get("status", "SCHEDULED"),
+                        "gate": "—",
+                        "baggage_claim": "—",
+                    }
+                    for f in flights[:n]
+                ]
+    except Exception as exc:
+        logger.warning("Cirium arrivals error %s: %s", airport, exc)
     return _mock_arrivals(airport, n)

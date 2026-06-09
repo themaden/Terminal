@@ -65,7 +65,7 @@ async def pss_status():
     return {
         "provider": "Amadeus",
         "mode": "live_sandbox" if client else "mock_fallback",
-        "configured": bool(settings.AMADEUS_CLIENT_ID and settings.AMADEUS_CLIENT_ID != "sandbox_client_id"),
+        "configured": settings.amadeus_configured,
         "sandbox_url": "https://test.api.amadeus.com",
         "endpoints": ["shopping/flight-offers", "schedule/flights", "travel/analytics"],
     }

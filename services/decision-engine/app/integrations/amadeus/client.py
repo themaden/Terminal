@@ -14,7 +14,7 @@ def get_amadeus_client():
     global _client
     if _client is not None:
         return _client
-    if not settings.AMADEUS_CLIENT_ID or settings.AMADEUS_CLIENT_ID == "sandbox_client_id":
+    if not settings.amadeus_configured:
         logger.warning("Amadeus credentials not configured — using mock data")
         return None
     try:
