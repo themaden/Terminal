@@ -1,15 +1,15 @@
 # JetNexus AI
 
-### Otonom Havacılık Operasyon ve Kriz Yönetim Platformu
+### Otonom Havacılık IRROPS Yönetim Platformu
 
 [![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://golang.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![Next.js](https://img.shields.io/badge/Next.js-15+-000000?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
+[![Next.js](https://img.shields.io/badge/Next.js-16+-000000?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
 [![License](https://img.shields.io/badge/License-MIT-f59e0b?style=for-the-badge)](LICENSE)
 
-> Uçuş krizlerini otomatik çözen, yolcu haklarını EU261 kapsamında koruyan ve operasyon merkezlerini tek panelden yöneten çok katmanlı havacılık zekâ platformu.
+> Uçuş krizlerini otomatik tespit eden, 4-derece öncelik hiyerarşisiyle MILP optimizasyonu yapan, EASA/IATA/EU261 uyumlu kararlar üreten ve operasyon merkezlerini tek panelden yöneten çok katmanlı havacılık zekâ platformu.
 
 ---
 
@@ -17,405 +17,325 @@
 
 - [Genel Bakış](#genel-bakış)
 - [Sistem Mimarisi](#sistem-mimarisi)
+- [AI Nasıl Çalışır](#ai-nasıl-çalışır)
+- [IRROPS Modülleri](#irrops-modülleri)
+- [Frontend Sayfaları](#frontend-sayfaları)
 - [Servisler](#servisler)
-- [Operasyon Katmanları](#operasyon-katmanları)
-- [AI Agent Mimarisi](#ai-agent-mimarisi)
-- [Kural Motoru](#kural-motoru)
-- [PSS Adaptörleri ve Dış Bağlantılar](#pss-adaptörleri-ve-dış-bağlantılar)
 - [EU261 Tazminat Motoru](#eu261-tazminat-motoru)
 - [Hızlı Başlangıç](#hızlı-başlangıç)
-- [Bağımsız Servis Başlatma](#bağımsız-servis-başlatma)
-- [Proje Yapısı](#proje-yapısı)
 - [API Referansı](#api-referansı)
-- [Geliştirme Komutları](#geliştirme-komutları)
+- [Proje Yapısı](#proje-yapısı)
 
 ---
 
 ## Genel Bakış
 
-JetNexus AI, havayolu operasyon merkezlerinin (IOCC, HUB Control, PCC, Revenue) gerçek zamanlı olarak kullandığı bir karar destek ve otomasyon platformudur. Uçuş iptali, gecikmesi veya bağlantı kopması gibi irrops (irregular operations) senaryolarında şu adımları otomatik olarak yürütür:
+JetNexus AI; uçuş iptali, gecikmesi veya bağlantı kopması gibi IRROPS senaryolarında şu adımları **otomatik** olarak yürütür:
 
-1. **Veri Alımı** — PSS sistemlerinden (Amadeus, Sabre, SITA) ve dış kaynaklardan (hava durumu, ATC, AODB, GDS) gerçek zamanlı veri çeker.
-2. **Kriz Tespiti** — IRROPS kuralları ile gecikme/iptal krizini sınıflandırır.
-3. **Yeniden Rezervasyon** — MILP optimizasyonu ile en düşük maliyetli yeniden yerleşim planını üretir.
-4. **Tazminat Hesabı** — EU261 regülasyonuna göre her yolcu için otomatik tazminat belirler.
-5. **Yolcu İletişimi** — Türkçe/İngilizce SMS ve WhatsApp bildirimi gönderir.
-6. **Denetim** — Tüm kararları yasal uyumluluk için audit log'a yazar.
+1. **Otomatik Kriz Tespiti** — Scheduler her 5 dakikada uçuş ve hava verilerini kontrol eder; gecikme > 30 dk veya kritik hava tehdidi tespit edince krizi kendisi açar.
+2. **4-Derece Öncelik** — UM/Engelli → Elite/Platinum → Aile Grupları → Standart yolcu sıralaması.
+3. **MILP Optimizasyonu** — PuLP/CBC solver ile en düşük maliyetli yeniden rezervasyon planı saniyeler içinde üretilir.
+4. **Multi-Agent AI** — GPT-4o veya Llama 3.2; rebooking doğrulama, EU261 denetimi, TR/EN bildirim metni ve uyum skoru üretir.
+5. **Mürettebat Kurtarma** — EASA FTL (13s görev / 10s dinlenme) denetimiyle otomatik ekip rotasyonu.
+6. **Bagaj Uzlaştırma** — IATA Resolution 753 uyumlu çanta-yolcu eşleşme ve yönlendirme emirleri.
+7. **Etki Grafiği** — Domino etkisi, bağlantı kaçırma ve aile bölünme riski hesabı.
+8. **Bildirim** — Twilio SMS ve WhatsApp ile yolculara anlık bildirim.
 
 ---
 
 ## Sistem Mimarisi
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                        Dış Sistemler                             │
-│   Amadeus · Sabre · SITA · OpenAI · Weather API · ATC · GDS     │
-└──────────────────────────┬───────────────────────────────────────┘
-                           │
-                           ▼
-          ┌────────────────────────────────┐
-          │     Ingestion Service (Go)      │
-          │  PSS Adapters · Normalizer      │
-          │  Webhook Handler · Rate Limiter │
-          └────────────┬───────────────────┘
+┌──────────────────────────────────────────────────────┐
+│              Dış Sistemler                           │
+│   Cirium · Amadeus · OpenAI · Twilio · Weather API  │
+└──────────────────────┬───────────────────────────────┘
+                       │
+          ┌────────────▼────────────┐
+          │   Ingestion Service     │
+          │   Go / Gin — :8002      │
+          │   PSS Adapter · Kafka   │
+          └────────────┬────────────┘
                        │  Apache Kafka
-          ┌────────────▼───────────────────┐
-          │    Decision Engine (FastAPI)    │
-          │  IRROPS Engine · MCT/ACT Rules  │
-          │  MILP Optimizer · EU261 Engine  │
-          │  AI Agents · PII Guard          │
-          └──┬──────────┬──────────┬────────┘
-             │          │          │
-    ┌─────────▼──┐ ┌────▼────┐ ┌──▼─────────────────┐
-    │ PostgreSQL  │ │  Redis  │ │ Notification Service│
-    │  (Kalıcı)  │ │ (Cache) │ │  SMS · WhatsApp     │
-    └────────────┘ └─────────┘ └────────────────────┘
-                                        │
-          ┌─────────────────────────────▼────────────────────┐
-          │              Frontend (Next.js 15)                │
-          │  Dashboard · IOCC · HUB Control · PCC · Revenue  │
-          └──────────────────────────────────────────────────┘
+          ┌────────────▼────────────────────────────┐
+          │         Decision Engine                  │
+          │         Python / FastAPI — :8000         │
+          │                                          │
+          │  ┌─────────────┐  ┌──────────────────┐  │
+          │  │  Scheduler  │  │   MILP Solver    │  │
+          │  │  (5 dk poll)│  │   PuLP / CBC     │  │
+          │  └─────────────┘  └──────────────────┘  │
+          │  ┌─────────────────────────────────────┐ │
+          │  │        AI Agent Koordinatörü         │ │
+          │  │  Rebooking · Compensation ·          │ │
+          │  │  Communication · Compliance          │ │
+          │  └─────────────────────────────────────┘ │
+          │  ┌───────────┐ ┌────────┐ ┌───────────┐  │
+          │  │ Crew      │ │Baggage │ │  Impact   │  │
+          │  │ Recovery  │ │ IATA   │ │  Graph    │  │
+          │  │ EASA FTL  │ │  753   │ │  Domino   │  │
+          │  └───────────┘ └────────┘ └───────────┘  │
+          └──────┬────────────────┬───────────────────┘
+                 │                │
+          ┌──────▼──────┐  ┌──────▼──────────────┐
+          │  SQLite /   │  │ Notification Service │
+          │  PostgreSQL │  │ Python — :8001        │
+          └─────────────┘  │ SMS · WhatsApp        │
+                           └──────────────────────┘
+                                    │
+          ┌─────────────────────────▼────────────────┐
+          │           Frontend (Next.js 16)           │
+          │  Dashboard · IOCC · PCC · Mürettebat ·    │
+          │  Bagaj · Etki Grafiği · Hub · Prediction  │
+          │  :3000                                    │
+          └──────────────────────────────────────────┘
 ```
+
+---
+
+## AI Nasıl Çalışır
+
+### Katman 1 — MILP Matematiksel Optimizer
+
+Kriz tetiklendiğinde ilk çalışan katman. Saniyeler içinde tamamlanır.
+
+```
+Yolcular + Alternatif Uçuşlar
+         ↓
+   PuLP / CBC Solver
+         ↓
+Maliyet minimize, öncelik maximize
+
+Kısıtlar:
+  • Tier 1 (UM/Engelli)  → hard constraint: iade yasak
+  • Tier 3 (Aile grubu)  → equality: aynı uçuşa
+  • Platinum refund ceza → 4x
+  • Uçuş kapasitesi      → aşılamaz
+```
+
+### Katman 2 — Multi-Agent AI (GPT-4o / Llama 3.2)
+
+MILP kararları hazır olunca her yolcu için 4 ajan sırayla çalışır:
+
+| Ajan | Görev |
+|------|-------|
+| **Rebooking Agent** | Uçuş atamasını doğrular, lounge/upgrade önerir |
+| **Compensation Agent** | EU261 tazminat hesabını denetler |
+| **Communication Agent** | Türkçe + İngilizce SMS metni üretir |
+| **Compliance Agent** | IATA/EU261 uyum skoru verir (0.0–1.0) |
+
+**LLM Öncelik Zinciri:**
+```
+OPENAI_API_KEY var → GPT-4o
+Ollama kurulu      → Llama 3.2 (yerel, ücretsiz)
+İkisi de yok       → Kural tabanlı fallback (sistem yine çalışır)
+```
+
+### Otomatik Kriz Tetikleyici
+
+```python
+# Scheduler her 5 dakikada çalışır
+if flight.delay_minutes > 30:
+    → CrisisService.trigger_crisis()   # otomatik kriz açılır
+
+if weather.severity == CRITICAL and time_to_impact < 90:
+    → CrisisService.trigger_crisis()   # etkilenen uçuşlar için kriz
+```
+
+---
+
+## IRROPS Modülleri
+
+### Mürettebat Kurtarma (EASA FTL)
+- 60 kişilik simüle ekip havuzu (kaptan, yardımcı pilot, kabin)
+- Maksimum görev süresi: 13 saat | Minimum dinlenme: 10 saat
+- Tip sertifikası eşleşmesi (B737, A320, A330, B777, B787)
+- `GET /api/v1/crew/availability` · `POST /api/v1/crew/recover/{flight}`
+
+### Bagaj Uzlaştırma (IATA 753)
+- Yolcu başına bagaj takibi ve çanta-yolcu eşleşme
+- Kriz sonrası otomatik yönlendirme emirleri
+- `GET /api/v1/baggage/status/{pnr}` · `POST /api/v1/baggage/reconcile/{crisis_id}`
+
+### Etki Grafiği (Domino Etkisi)
+- Cascade zinciri: hangi uçuş hangi uçuşu etkiliyor
+- Bağlantı kaçırma riski ve aile bölünme uyarıları
+- EU261 toplam yükümlülük tahmini
+- `GET /api/v1/impact/{crisis_id}`
+
+### Soft Hold & Senaryo Havuzu
+- Kriz öncesi alternatif kapasite rezervasyonu
+- "Ya iptal olursa?" senaryoları ön hesaplama
+- `POST /api/v1/prediction/soft-hold/{flight}` · `POST /api/v1/prediction/scenario-pool/{flight}`
+
+### 4-Derece Öncelik Hiyerarşisi
+
+| Derece | Kapsam | Kural |
+|--------|--------|-------|
+| **Tier 1** | UM çocuk / Engelli | Hard constraint — asla iade yok |
+| **Tier 2** | Platinum / Gold | Refund ceza katsayısı 4x / 2.5x |
+| **Tier 3** | Aile / grup | Bölünme yasak — aynı uçuşa |
+| **Tier 4** | Standart | Maliyet optimizasyonu |
+
+---
+
+## Frontend Sayfaları
+
+| Sayfa | URL | İçerik |
+|-------|-----|---------|
+| **Dashboard** | `/` | KPI kartları, dünya haritası, aktif krizler, yolcular |
+| **IOCC** | `/iocc` | Tüm krizler, karar onaylama/reddetme |
+| **Yolcular** | `/pcc` | Risk altındaki yolcular, EU261 tazminat |
+| **Mürettebat** | `/crew` | EASA FTL uyum, ekip ataması, kurtarma planı |
+| **Bagaj** | `/baggage` | PNR sorgulama, IATA 753 uzlaştırma |
+| **Etki Grafiği** | `/impact` | Domino zinciri, aile bölünme riski |
+| **Hub Kontrol** | `/hub-control` | Transit bağlantı riski |
+| **Risk Tahmini** | `/prediction` | Hava tehdidi, soft-hold, senaryo havuzu |
+| **Oteller** | `/hotels` | Otel kapasitesi ve rezervasyon |
+| **Otobüsler** | `/buses` | Transfer araç filosu |
+| **Kayıtlar** | `/audit` | Karar denetim logu |
 
 ---
 
 ## Servisler
 
-### Decision Engine — `services/decision-engine` (Python/FastAPI)
-
-Ana iş mantığını barındıran servis. Port `8000`'de çalışır.
+### Decision Engine — `services/decision-engine` (Python/FastAPI) · Port 8000
 
 | Modül | Açıklama |
-|---|---|
-| `app/agents/` | CrewAI tabanlı çok ajanlı orkestrasyon |
-| `app/optimization/` | PuLP/CBC ile MILP yeniden rezervasyon optimizasyonu |
-| `app/regulations/` | EU261 tazminat motoru ve validator |
-| `app/rules/` | MCT, ACT ve IRROPS karar kuralları |
-| `app/guardrails/` | PII maskeleme, prompt injection koruması, rate limiting |
-| `app/api/routes/` | REST API uç noktaları (crisis, flights, hub, iocc, pcc, revenue) |
-| `app/db/` | SQLAlchemy async ORM, veritabanı modelleri, seed verisi |
+|-------|----------|
+| `app/agents/` | Multi-agent koordinatör (GPT-4o / Llama fallback) |
+| `app/optimization/` | MILP solver — 4-derece öncelik kısıtları |
+| `app/api/routes/` | REST API (crisis, flights, crew, baggage, impact, prediction...) |
+| `app/integrations/scheduler.py` | Otomatik kriz tetikleyici, hava durumu izleme |
+| `app/services/crisis_service.py` | Kriz akış yönetimi, öncelik sıralama |
+| `app/db/` | SQLAlchemy async ORM, SQLite (dev) / PostgreSQL (prod) |
 
-### Ingestion Service — `services/ingestion-service` (Go)
+### Ingestion Service — `services/ingestion-service` (Go) · Port 8002
 
-Dış sistemlerden veri alan ve Kafka'ya ileten kapı servisi. Port `8002`'de çalışır.
+PSS sistemlerinden (Amadeus, Sabre, SITA) ve dış kaynaklardan veri alan Kafka kapı servisi.
 
-| Modül | Açıklama |
-|---|---|
-| `internal/adapters/pss/` | Amadeus, Sabre, SITA, Custom PSS adaptörleri |
-| `internal/adapters/normalizer.go` | Farklı PSS formatlarını ortak veri modeline dönüştürür |
-| `internal/connectors/` | Hava durumu, ATC, AODB, GDS dış bağlantı modülleri |
-| `internal/handlers/` | HTTP webhook handler'ları (uçuş olayları, PSS olayları) |
-| `internal/middleware/` | API key kimlik doğrulama, rate limiting |
-| `internal/queue/` | Kafka producer |
+### Notification Service — `services/notification-service` (Python) · Port 8001
 
-### Notification Service — `services/notification-service` (Python)
-
-Kafka'yı dinleyen ve yolculara bildirim gönderen servis. Port `8001`'de çalışır.
-
-| Kanal | Açıklama |
-|---|---|
-| `channels/sms.py` | Twilio SMS entegrasyonu |
-| `channels/whatsapp.py` | Twilio WhatsApp entegrasyonu |
-| `channels/email.py` | E-posta kanalı |
-| `templates/` | TR/EN iptal ve yeniden rezervasyon şablonları |
-
-### Frontend — `frontend` (Next.js 15 + TypeScript)
-
-Operasyon merkezleri için dark-mode HUD dashboard. Port `3000`'de çalışır.
-
----
-
-## Operasyon Katmanları
-
-JetNexus AI dört ayrı operasyon ekranı sunar; her biri havayolunun farklı bir departmanına karşılık gelir:
-
-### IOCC — Integrated Operations Control Center (`/iocc`)
-
-Havayolunun tüm operasyonel kontrolünü yöneten merkez ekran. Aktif krizleri listeler, IRROPS kararlarını manuel olarak onaylar/reddeder ve uçuş durumunu gerçek zamanlı izler.
-
-**API:** `GET /api/v1/iocc/crises/active`, `POST /api/v1/iocc/decisions/{id}/approve`
-
-### HUB Control — Bağlantı Yönetimi (`/hub-control`)
-
-Transit yolcuların bağlantı riskini gerçek zamanlı takip eder. MCT (Minimum Connection Time) ve ACT (Actual Connection Time) hesaplamalarıyla riskli bağlantıları öne çıkarır, çıkış kapısı değişikliklerini yönetir.
-
-**API:** `GET /api/v1/hub/connections/at-risk`, `POST /api/v1/hub/connections/update`
-
-### PCC — Passenger Care Center (`/pcc`)
-
-Risk altındaki yolcuları listeler, yolcu başına karar önerir ve kurtarma aksiyonlarını başlatır. VIP yolcular için öncelikli görünüm sunar.
-
-**API:** `GET /api/v1/pcc/passengers/at-risk`, `POST /api/v1/pcc/passengers/{pnr}/recover`
-
-### Revenue Management (`/revenue`)
-
-Kriz kararlarının maliyet etkisini özetler. Tazminat tutarlarını, yeniden rezervasyon maliyetlerini ve EU261 yükümlülüklerini kıyaslar.
-
-**API:** `GET /api/v1/revenue/impact/summary`, `GET /api/v1/revenue/impact/by-crisis`
-
----
-
-## AI Agent Mimarisi
-
-```
-             ┌──────────────────────────────┐
-             │       CoordinatorAgent        │
-             │  Tüm ajanları sıraya sokar    │
-             └────┬──────────┬──────────────┘
-                  │          │
-       ┌──────────┘          └──────────────────┐
-       ▼                     ▼                  ▼
-┌───────────┐    ┌───────────────┐    ┌──────────────────┐
-│ Rebooking │    │ Compensation  │    │  Communication   │
-│  Agent    │    │    Agent      │    │     Agent        │
-│ MILP ile  │    │ EU261 tablosu │    │ TR/EN bildirim   │
-│ yeni uçuş │    │ otomatik dol  │    │ metni üretir     │
-└───────────┘    └───────────────┘    └──────────────────┘
-                                      ┌──────────────────┐
-                                      │ Compliance Agent │
-                                      │ Yasal denetim    │
-                                      └──────────────────┘
-```
-
-| Agent | Sorumluluk |
-|---|---|
-| **Coordinator** | Kriz akışını yönetir, ajan sırasını belirler |
-| **Rebooking** | MILP sonuçlarına göre en uygun uçuşa atar |
-| **Compensation** | EU261 kurallarına göre tazminat belirler |
-| **Communication** | TR/EN yolcu bildirim mesajları üretir |
-| **Compliance** | Tüm kararların yasal uyumluluğunu denetler |
-
----
-
-## Kural Motoru
-
-`services/decision-engine/app/rules/` altında üç temel kural modülü bulunur:
-
-### MCT Calculator (`mct.py`)
-
-Minimum Connection Time — havalimanı ve uçuş tipine göre minimum aktarma süresini hesaplar. Yurt içi/yurt dışı, terminal farkı ve özel havalimanı kurallarını destekler.
-
-### ACT Tracker (`act.py`)
-
-Actual Connection Time — anlık uçuş durumuna göre her transit yolcunun gerçek bağlantı süresini hesaplar. MCT ile kıyaslayarak `OK / AT_RISK / CRITICAL / MISSED` durumunu belirler ve `_act_tracker` singleton'ı üzerinden Hub Control'e canlı veri sağlar.
-
-### IRROPS Engine (`irrops_engine.py`)
-
-Irregular Operations karar motoru. Gecikme/iptal/yönlendirme/erken kalkış senaryolarını sınıflandırır; yolcu değerini (VIP, frequent flyer), bağlantı durumunu ve uçuş doluluk oranını birleştirerek otomatik aksiyon önerir.
-
----
-
-## PSS Adaptörleri ve Dış Bağlantılar
-
-### PSS Adaptörleri (`ingestion-service/internal/adapters/pss/`)
-
-Farklı rezervasyon sistemlerinin veri formatlarını `PassengerProfile` ortak modeline dönüştürür:
-
-| Adaptör | Sistem | Format |
-|---|---|---|
-| `amadeus.go` | Amadeus GDS | SOAP/REST |
-| `sabre.go` | Sabre GDS | JSON API |
-| `sita.go` | SITA Horizon | IATA standard |
-| `custom.go` | Özel entegrasyon | Yapılandırılabilir |
-
-`normalizer.go` tüm adaptörlerin çıktısını tutarlı bir `FlightEvent` modeline normalize eder ve Kafka'ya üretir.
-
-### Dış Bağlantılar (`ingestion-service/internal/connectors/`)
-
-| Modül | Veri Kaynağı | Kullanım |
-|---|---|---|
-| `weather.go` | Hava Durumu API | Pist kapanması, fırtına kararları |
-| `atc.go` | ATC (Hava Trafik Kontrolü) | CTOT, slot kısıtlamaları |
-| `aodb.go` | AODB (Airport Ops DB) | Gerçek kapı, pist, çıkış saatleri |
-| `gds.go` | GDS | Dolu uçuş arama, alternatif güzergah |
+Kafka'yı dinleyen Twilio SMS + WhatsApp bildirim servisi.
 
 ---
 
 ## EU261 Tazminat Motoru
 
-AB Yönetmeliği 261/2004 kapsamında tazminat otomatik hesaplanır:
-
 | Mesafe | Gecikme | Tazminat |
-|:---|:---:|:---:|
-| < 1.500 km | ≥ 3 saat veya iptal | **€250** |
-| 1.500 – 3.500 km | ≥ 3 saat veya iptal | **€400** |
-| > 3.500 km (AB içi) | ≥ 3 saat veya iptal | **€400** |
-| > 3.500 km | ≥ 4 saat veya iptal | **€600** |
-| > 3.500 km | 3–4 saat arası | **€300** (%50 indirim) |
+|--------|---------|----------|
+| < 1.500 km | ≥ 3 saat / iptal | **€250** |
+| 1.500 – 3.500 km | ≥ 3 saat / iptal | **€400** |
+| > 3.500 km | 3–4 saat arası | **€300** |
+| > 3.500 km | ≥ 4 saat / iptal | **€600** |
 
-Olağanüstü haller (hava, güvenlik, ATC kısıtlaması) otomatik olarak tespit edilir ve tazminattan muafiyet uygulanır.
+Olağanüstü haller (fırtına, ATC kısıtı, güvenlik) otomatik tespit edilir; tazminattan muafiyet uygulanır ancak **bakım hakkı** (otel, yemek) her durumda geçerlidir.
 
 ---
 
 ## Hızlı Başlangıç
 
-### Gereksinimler
-
-- Python 3.12+
-- Node.js 20+
-- Go 1.22+
-- Docker & Docker Compose *(altyapı için)*
-
-### Docker ile Tam Kurulum
+### Docker ile (Önerilen)
 
 ```bash
-# 1. Repoyu klonla
 git clone https://github.com/themaden/Terminal.git
 cd Terminal
-
-# 2. .env dosyasını oluştur
 cp .env.example .env
-# POSTGRES_PASSWORD, OPENAI_API_KEY ve SECRET_KEY değerlerini doldur
+# .env içine POSTGRES_PASSWORD ekle
 
-# 3. Tüm servisleri başlat
 docker compose up -d
-
-# 4. Örnek veri yükle (isteğe bağlı)
-docker exec jetnexus-decision-engine python -m app.db.seed
 ```
 
 | Servis | URL |
-|---|---|
-| Frontend Dashboard | http://localhost:3000 |
-| API Swagger UI | http://localhost:8000/docs |
+|--------|-----|
+| Frontend | http://localhost:3000 |
+| API Docs | http://localhost:8000/docs |
 | Decision Engine | http://localhost:8000 |
-| Ingestion Service | http://localhost:8002 |
 
----
-
-## Bağımsız Servis Başlatma
-
-Docker olmadan da her servis kendi runtime'ıyla çalışır.
-
-### Decision Engine (FastAPI + SQLite fallback)
+### Docker Olmadan (SQLite)
 
 ```bash
+# Backend
 cd services/decision-engine
 pip install -r requirements.txt
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 
-# SQLite ile çalıştır (Redis/Kafka olmadan)
-DATABASE_URL=sqlite+aiosqlite:///aeroagent.sqlite3 \
-APP_ENV=development \
-uvicorn app.main:app --reload --port 8000
-```
-
-### Frontend (Next.js)
-
-```bash
+# Frontend (ayrı terminal)
 cd frontend
 npm install
 npm run dev
-# http://localhost:3000
 ```
 
-### Ingestion Service (Go)
+### Gerçek Veriye Geçmek
 
-```bash
-cd services/ingestion-service
-go mod download
-go run ./cmd/server/main.go
-```
+`.env` dosyasına key eklemek yeterli — sistem otomatik olarak mock'tan gerçek veriye geçer:
 
----
-
-## Proje Yapısı
-
-```
-jetnexus-ai/
-├── services/
-│   ├── decision-engine/              # Python/FastAPI — Karar Motoru
-│   │   └── app/
-│   │       ├── agents/               # AI ajan koordinasyonu (CrewAI)
-│   │       ├── api/routes/           # REST uç noktaları
-│   │       │   ├── crisis.py         # Kriz yönetimi
-│   │       │   ├── flights.py        # Uçuş verileri
-│   │       │   ├── hub_control.py    # HUB bağlantı kontrolü
-│   │       │   ├── iocc.py           # Operasyon kontrol merkezi
-│   │       │   ├── pcc.py            # Yolcu destek merkezi
-│   │       │   └── revenue.py        # Gelir etki analizi
-│   │       ├── db/                   # ORM modelleri, seed, migrations
-│   │       ├── guardrails/           # PII filtre, prompt guard, rate limit
-│   │       ├── models/               # Pydantic şemaları
-│   │       ├── optimization/         # MILP solver (PuLP/CBC)
-│   │       ├── regulations/          # EU261 motoru ve validator
-│   │       ├── rules/                # MCT, ACT, IRROPS karar kuralları
-│   │       └── services/             # Kriz servis katmanı
-│   │
-│   ├── ingestion-service/            # Go — Veri Alım Servisi
-│   │   └── internal/
-│   │       ├── adapters/pss/         # Amadeus, Sabre, SITA, Custom
-│   │       ├── adapters/normalizer   # PSS → ortak model dönüştürücü
-│   │       ├── connectors/           # Weather, ATC, AODB, GDS
-│   │       ├── handlers/             # Webhook ve PSS event handler'ları
-│   │       ├── middleware/           # Auth, rate limiting
-│   │       ├── models/               # FlightEvent, PassengerProfile
-│   │       └── queue/                # Kafka producer
-│   │
-│   └── notification-service/         # Python — Bildirim Servisi
-│       └── app/
-│           ├── channels/             # SMS, WhatsApp, Email
-│           └── templates/            # TR/EN mesaj şablonları
-│
-├── frontend/                         # Next.js 15 — Operasyon Paneli
-│   └── src/app/
-│       ├── dashboard/                # Ana özet ekranı
-│       ├── crisis/                   # Kriz listesi ve detay
-│       ├── flights/                  # Uçuş takibi
-│       ├── passengers/               # Yolcu yönetimi
-│       ├── optimization/             # MILP sonuç görünümü
-│       ├── hub-control/              # HUB bağlantı ekranı
-│       ├── iocc/                     # IOCC operasyon merkezi
-│       ├── pcc/                      # Yolcu destek ekranı
-│       ├── revenue/                  # Gelir etkisi ekranı
-│       └── audit/                    # Karar denetim logu
-│
-├── infra/
-│   └── docker/postgres-init.sql      # Veritabanı başlangıç şeması
-├── docker-compose.yml
-└── .env.example
+```env
+OPENAI_API_KEY=sk-...          # GPT-4o devreye girer
+CIRIUM_APP_ID=...              # Gerçek uçuş verisi
+CIRIUM_APP_KEY=...
+AMADEUS_CLIENT_ID=...          # Amadeus PSS
+TWILIO_ACCOUNT_SID=...         # SMS/WhatsApp
+TWILIO_AUTH_TOKEN=...
+TWILIO_FROM_NUMBER=+1...
 ```
 
 ---
 
 ## API Referansı
 
-Tüm uç noktalar `http://localhost:8000/docs` adresindeki Swagger UI üzerinden interaktif olarak test edilebilir.
-
-### Temel Uç Noktalar
+Tüm endpointler `http://localhost:8000/docs` Swagger UI üzerinden test edilebilir.
 
 | Method | Endpoint | Açıklama |
-|---|---|---|
+|--------|----------|----------|
 | `GET` | `/health` | Servis sağlık durumu |
-| `GET` | `/api/v1/flights` | Aktif uçuş listesi |
-| `POST` | `/api/v1/crisis` | Yeni kriz tetikle |
-| `GET` | `/api/v1/crisis/{id}` | Kriz detayı ve karar geçmişi |
-| `GET` | `/api/v1/iocc/crises/active` | IOCC aktif kriz görünümü |
-| `POST` | `/api/v1/iocc/decisions/{id}/approve` | IOCC karar onaylama |
-| `GET` | `/api/v1/hub/connections/at-risk` | Riskli transit bağlantılar |
-| `GET` | `/api/v1/pcc/passengers/at-risk` | Riskli yolcu listesi |
-| `POST` | `/api/v1/pcc/passengers/{pnr}/recover` | Yolcu kurtarma aksiyonu |
-| `GET` | `/api/v1/revenue/impact/summary` | Genel maliyet özeti |
+| `POST` | `/api/v1/crisis/trigger` | Kriz tetikle |
+| `GET` | `/api/v1/crisis/active` | Aktif krizler |
+| `GET` | `/api/v1/crew/availability` | Müsait mürettebat |
+| `POST` | `/api/v1/crew/recover/{flight}` | Ekip kurtarma planı |
+| `GET` | `/api/v1/baggage/status/{pnr}` | Bagaj durumu |
+| `POST` | `/api/v1/baggage/reconcile/{crisis_id}` | Kriz bagaj uzlaştırma |
+| `GET` | `/api/v1/impact/{crisis_id}` | Etki grafiği |
+| `GET` | `/api/v1/prediction/weather-forecast` | Hava tehdidi tahmini |
+| `POST` | `/api/v1/prediction/soft-hold/{flight}` | Kapasite soft-hold |
+| `GET` | `/api/v1/pcc/passengers/at-risk` | Risk altındaki yolcular |
+| `GET` | `/api/v1/iocc/dashboard` | IOCC özet |
 
 ---
 
-## Geliştirme Komutları
+## Proje Yapısı
 
-```bash
-# Docker ile
-docker compose up -d          # Tüm servisleri başlat
-docker compose down           # Durdur
-docker compose logs -f        # Canlı log takibi
-
-# Test
-cd services/decision-engine && pytest
-cd services/notification-service && pytest
-
-# Linting
-cd services/decision-engine && ruff check .
-
-# Frontend
-cd frontend && npm run build  # Production build
-cd frontend && npm run lint   # ESLint kontrolü
+```
+Terminal/
+├── services/
+│   ├── decision-engine/          # Python/FastAPI — Karar Motoru
+│   │   └── app/
+│   │       ├── agents/           # Multi-agent koordinatör + promptlar
+│   │       ├── api/routes/       # crisis, crew, baggage, impact, prediction...
+│   │       ├── db/               # ORM modelleri, seed data
+│   │       ├── integrations/     # Scheduler, Cirium, Amadeus
+│   │       ├── models/           # Pydantic şemaları (4-derece öncelik alanları)
+│   │       ├── optimization/     # MILP solver (4-tier constraints)
+│   │       └── services/         # CrisisService, öncelik sıralama
+│   │
+│   ├── ingestion-service/        # Go — PSS & Dış Veri Alımı
+│   └── notification-service/     # Python — Twilio SMS/WhatsApp
+│
+├── frontend/                     # Next.js 16
+│   ├── app/
+│   │   ├── page.tsx              # Dashboard (harita + KPI + krizler)
+│   │   ├── crew/                 # Mürettebat kurtarma
+│   │   ├── baggage/              # Bagaj uzlaştırma
+│   │   ├── impact/               # Etki grafiği
+│   │   ├── iocc/                 # Operasyon kontrol merkezi
+│   │   ├── pcc/                  # Yolcu destek merkezi
+│   │   └── prediction/           # Risk tahmini
+│   ├── components/dashboard/     # Sidebar, Header, FlightMap, StatsBar...
+│   └── lib/api.ts                # Tüm API tipleri ve çağrı fonksiyonları
+│
+├── docker-compose.yml
+├── .env.example
+└── README.md
 ```
 
 ---
