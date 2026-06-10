@@ -13,6 +13,7 @@ import {
   UserCheck, Luggage, GitFork, Settings, ChevronRight,
   Clock, Euro, ArrowRight, Loader2, FileText, Hotel, Bus,
 } from "lucide-react"
+import { FlightMap, type FlightRoute, type FlightMarker } from "@/components/dashboard/flight-map"
 
 // ─── Sidebar nav ─────────────────────────────────────────────────────────────
 
@@ -250,6 +251,33 @@ export default function DashboardPage() {
 
   const hasCrisis = crises.length > 0
 
+  const STATIC_ROUTES: FlightRoute[] = [
+    { id: "1", from: [28.82, 40.98], to: [-0.45,  51.47], status: "active", code: "IST-LHR" },
+    { id: "2", from: [28.82, 40.98], to: [2.55,   49.01], status: "active", code: "IST-CDG" },
+    { id: "3", from: [28.82, 40.98], to: [8.57,   50.03], status: "active", code: "IST-FRA" },
+    { id: "4", from: [28.82, 40.98], to: [-73.78, 40.64], status: "active", code: "IST-JFK" },
+    { id: "5", from: [28.82, 40.98], to: [55.36,  25.25], status: "active", code: "IST-DXB" },
+    { id: "6", from: [28.82, 40.98], to: [103.98,  1.36], status: "active", code: "IST-SIN" },
+  ]
+
+  const dynamicRoutes: FlightRoute[] = hasCrisis
+    ? STATIC_ROUTES.map((r, i) => ({
+        ...r,
+        status: i === 0
+          ? (crises[0]?.crisis_type === "cancellation" ? "cancelled" : "delayed")
+          : "active",
+      }))
+    : STATIC_ROUTES
+
+  const flightMarkers: FlightMarker[] = flights.slice(0, 6).map((f, i) => ({
+    id: String(i),
+    coordinates: [28.82 + i * 6, 40.98 + i * 1.5] as [number, number],
+    code: f.flight_number,
+    status: f.status === "CANCELLED" ? "grounded"
+          : f.status === "DELAYED"   ? "delayed"
+          : "active",
+  }))
+
   return (
     <div className="h-screen flex bg-[#f5f5fa] overflow-hidden">
       <Sidebar />
@@ -300,6 +328,11 @@ export default function DashboardPage() {
             <StatCard label="Etkilenen Yolcu" value={stats?.passengers ?? 0}    icon={Users}         color="text-[#f59e0b]" sub="kriz kapsamında" />
             <StatCard label="Verilen Karar" value={stats?.decisions ?? 0}        icon={CheckCircle}   color="text-[#10b981]" sub="AI otomatik" />
             <StatCard label="EU261 Maliyet" value={`€${((stats?.total_compensation_eur ?? 0) / 1000).toFixed(0)}K`} icon={Euro} color="text-[#3b82f6]" sub="toplam tazminat" />
+          </div>
+
+          {/* Dünya Haritası */}
+          <div className="mb-5 h-64 rounded-xl overflow-hidden">
+            <FlightMap routes={dynamicRoutes} markers={flightMarkers} hasCrisis={hasCrisis} />
           </div>
 
           <div className="grid grid-cols-3 gap-4">
