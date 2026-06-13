@@ -181,19 +181,33 @@ if weather.severity == CRITICAL and time_to_impact < 90:
 
 ## Frontend Sayfaları
 
+Karanlık THY teması — `#080a12` arka plan, `#C8102E` kırmızı vurgu, glassmorphism kartlar.
+
+### Operatör Paneli
 | Sayfa | URL | İçerik |
 |-------|-----|---------|
-| **Dashboard** | `/` | KPI kartları, dünya haritası, aktif krizler, yolcular |
-| **IOCC** | `/iocc` | Tüm krizler, karar onaylama/reddetme |
-| **Yolcular** | `/pcc` | Risk altındaki yolcular, EU261 tazminat |
-| **Mürettebat** | `/crew` | EASA FTL uyum, ekip ataması, kurtarma planı |
-| **Bagaj** | `/baggage` | PNR sorgulama, IATA 753 uzlaştırma |
-| **Etki Grafiği** | `/impact` | Domino zinciri, aile bölünme riski |
-| **Hub Kontrol** | `/hub-control` | Transit bağlantı riski |
-| **Risk Tahmini** | `/prediction` | Hava tehdidi, soft-hold, senaryo havuzu |
-| **Oteller** | `/hotels` | Otel kapasitesi ve rezervasyon |
-| **Otobüsler** | `/buses` | Transfer araç filosu |
-| **Kayıtlar** | `/audit` | Karar denetim logu |
+| **Komuta Merkezi** | `/` | Dünya haritası, AI Kriz Tahmincisi gauge, canlı rota durumu |
+| **AI Analizleri** | `/ai-analytics` | Kriz tahminleri, yolcu önceliklendirme, risk skorları |
+| **Kaynak Yönetimi** | `/resources` | Otel kapasitesi, transfer araçları, ikram/voucher, personel |
+| **İletişim Merkezi** | `/communications` | SMS/WhatsApp kanalları, bildirim şablonları, gönderim performansı |
+| **Ayarlar** | `/settings` | Profil, AI hassasiyeti, güvenlik, bildirim tercihleri |
+| **Şirket İçi İletişim** | `/internal-comm` | Slack benzeri kanal yapısı, SkyWise AI bot mesajları |
+
+### IRROPS Paneli
+| Sayfa | URL | İçerik |
+|-------|-----|---------|
+| **IRROPS Gösterge** | `/iocc` | Aktif kesintiler, etkilenen yolcu sayısı, AI kurtarma oranı |
+| **Uçuş Takip** | `/flights` | Uçuş tablosu, arama/filtre, risk durumu göstergeleri |
+| **Raporlar** | `/reports` | IRROPS maliyet analizi, memnuniyet trendi, kaynak verimliliği grafikleri |
+| **Yolcu Yönetimi** | `/pcc` | Yolcu listesi, sadakat statüsü, ACT/bağlantı atamaları |
+| **Destek** | `/support` | Teknik destek formu, hızlı aramalar, yardım merkezi |
+
+### Yolcu Portalı
+| Sayfa | URL | İçerik |
+|-------|-----|---------|
+| **Giriş** | `/login` | Dünya haritası arka planlı PNR giriş ekranı |
+| **Yolcu Portalı** | `/passenger-portal` | Uçuş durumu, otel/yemek/yeniden rezervasyon hizmetleri |
+| **AI Bot** | `/ai-bot` | SkyWise AI operasyon botu, anlık rapor ve aksiyon önerileri |
 
 ---
 
@@ -321,16 +335,24 @@ Terminal/
 │   ├── ingestion-service/        # Go — PSS & Dış Veri Alımı
 │   └── notification-service/     # Python — Twilio SMS/WhatsApp
 │
-├── frontend/                     # Next.js 16
+├── frontend/                     # Next.js 16 — THY Koyu Tema
 │   ├── app/
-│   │   ├── page.tsx              # Dashboard (harita + KPI + krizler)
-│   │   ├── crew/                 # Mürettebat kurtarma
-│   │   ├── baggage/              # Bagaj uzlaştırma
-│   │   ├── impact/               # Etki grafiği
-│   │   ├── iocc/                 # Operasyon kontrol merkezi
-│   │   ├── pcc/                  # Yolcu destek merkezi
-│   │   └── prediction/           # Risk tahmini
-│   ├── components/dashboard/     # Sidebar, Header, FlightMap, StatsBar...
+│   │   ├── page.tsx              # Global Operasyon Komuta Merkezi
+│   │   ├── iocc/                 # IRROPS Gösterge Paneli
+│   │   ├── pcc/                  # Yolcu Takip ve Yönetim
+│   │   ├── flights/              # Uçuş Takip Paneli
+│   │   ├── reports/              # Raporlar ve Analitikler
+│   │   ├── support/              # Destek ve Teknik İletişim
+│   │   ├── ai-analytics/         # AI Yapay Zeka Analizleri
+│   │   ├── resources/            # Kaynak Yönetimi
+│   │   ├── communications/       # İletişim ve Bildirim Merkezi
+│   │   ├── internal-comm/        # Şirket İçi İletişim Hubı
+│   │   ├── ai-bot/               # SkyWise AI Operasyon Botu
+│   │   ├── settings/             # Ayarlar
+│   │   ├── login/                # Yolcu Giriş Ekranı
+│   │   └── passenger-portal/     # Yolcu Geri Kazanım Portalı
+│   ├── components/dashboard/
+│   │   └── sidebar.tsx           # 3 modlu sidebar (Operatör/IRROPS/Yolcu)
 │   └── lib/api.ts                # Tüm API tipleri ve çağrı fonksiyonları
 │
 ├── docker-compose.yml
