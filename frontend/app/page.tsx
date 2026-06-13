@@ -1,8 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { Search } from "lucide-react"
-import { ComposableMap, Geographies, Geography, Graticule, Sphere, Marker } from "react-simple-maps"
+import { ComposableMap, Geographies, Geography, Graticule, Sphere, Marker, Line } from "react-simple-maps"
 import { Sidebar } from "@/components/dashboard/sidebar"
 
 const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
@@ -15,22 +14,37 @@ const AIRPORTS: Record<string, [number, number]> = {
   LAX: [-118.4, 33.94], ORD: [-87.9, 41.97], GRU: [-46.47, -23.43],
   SYD: [151.18, -33.95], CAI: [31.41, 30.12], DEL: [77.10, 28.55],
   PEK: [116.59, 40.08], SVO: [37.41, 55.97], DOH: [51.61, 25.27],
-  BKK: [100.75, 13.68], NBO: [36.92, -1.32], JNB: [28.24, -26.13],
+  BKK: [100.75, 13.68],
 }
 
-const ROUTES = [
-  "LHR","CDG","JFK","FRA","AMS","DXB","BER","MAD","FCO",
-  "SIN","NRT","LAX","ORD","GRU","SYD","CAI","DEL","PEK","SVO","DOH","BKK"
-]
+type RouteStatus = "normal" | "warning" | "disrupted"
+
+const ROUTE_STATUS: Record<string, RouteStatus> = {
+  LHR: "disrupted", CDG: "warning", JFK: "normal", FRA: "warning",
+  AMS: "normal",    DXB: "normal",  BER: "disrupted", MAD: "normal",
+  FCO: "normal",    SIN: "normal",  NRT: "normal",  LAX: "normal",
+  ORD: "normal",    GRU: "normal",  SYD: "normal",  CAI: "normal",
+  DEL: "normal",    PEK: "normal",  SVO: "warning", DOH: "normal",
+  BKK: "normal",
+}
+
+const DOT_COLOR: Record<RouteStatus, string> = {
+  normal:    "rgba(255,255,255,0.6)",
+  warning:   "#f59e0b",
+  disrupted: "#E82040",
+}
+
+const LINE_STROKE: Record<RouteStatus, string> = {
+  normal:    "rgba(200,16,46,0.22)",
+  warning:   "rgba(245,158,11,0.45)",
+  disrupted: "rgba(232,32,64,0.65)",
+}
 
 function Gauge({ value }: { value: number }) {
   const r = 60, cx = 80, cy = 80
   const startAngle = 215, totalSweep = 250
   const toRad = (d: number) => d * Math.PI / 180
-  const pt = (a: number) => ({
-    x: cx + r * Math.cos(toRad(a)),
-    y: cy + r * Math.sin(toRad(a))
-  })
+  const pt = (a: number) => ({ x: cx + r * Math.cos(toRad(a)), y: cy + r * Math.sin(toRad(a)) })
   const s = pt(startAngle), e = pt(startAngle + totalSweep)
   const bgPath = `M ${s.x} ${s.y} A ${r} ${r} 0 1 1 ${e.x} ${e.y}`
   const sweep = (value / 100) * totalSweep
@@ -41,14 +55,23 @@ function Gauge({ value }: { value: number }) {
   return (
     <div className="flex flex-col items-center">
       <svg width="160" height="110" viewBox="0 0 160 110">
-        <path d={bgPath} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={10} strokeLinecap="round" />
+        <defs>
+          <filter id="gaugeGlow">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
+        <path d={bgPath} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={10} strokeLinecap="round" />
         <path d={valPath} fill="none" stroke="#E82040" strokeWidth={10} strokeLinecap="round"
-          style={{ filter: "drop-shadow(0 0 6px rgba(232,32,64,0.7))" }} />
-        <text x="80" y="85" textAnchor="middle" fill="white" fontSize="26" fontWeight="bold" fontFamily="system-ui">
+          filter="url(#gaugeGlow)"
+          style={{ filter: "drop-shadow(0 0 8px rgba(232,32,64,0.8))" }} />
+        <text x="80" y="82" textAnchor="middle" fill="white" fontSize="26" fontWeight="bold" fontFamily="system-ui">
           {value}%
         </text>
+        <text x="80" y="98" textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="9" fontFamily="system-ui">
+          RİSK ENDEKSİ
+        </text>
       </svg>
-      <p className="text-white/60 text-xs text-center mt-1">Aksaklık<br/>Risk Endeksi</p>
     </div>
   )
 }
@@ -64,11 +87,6 @@ function LiveBadge() {
 }
 
 export default function MainDashboard() {
-  const [tick, setTick] = useState(0)
-  useEffect(() => {
-    const id = setInterval(() => setTick(t => t + 1), 3000)
-    return () => clearInterval(id)
-  }, [])
 
   return (
     <div className="h-screen flex overflow-hidden"
@@ -77,7 +95,6 @@ export default function MainDashboard() {
       }}>
       <Sidebar />
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
         {/* Top Bar */}
@@ -99,56 +116,104 @@ export default function MainDashboard() {
 
           {/* Map Area */}
           <div className="flex-1 rounded-2xl overflow-hidden relative"
-            style={{ background: "rgba(8,10,20,0.6)", border: "1px solid rgba(255,255,255,0.07)" }}>
+            style={{ background: "rgba(5,8,18,0.9)", border: "1px solid rgba(255,255,255,0.08)" }}>
 
             <ComposableMap
               projection="geoNaturalEarth1"
               style={{ width: "100%", height: "100%" }}
               projectionConfig={{ scale: 165, center: [15, 20] }}
             >
-              <Sphere id="sphere" fill="#060c1c" stroke="transparent" strokeWidth={0} />
-              <Graticule stroke="rgba(255,255,255,0.04)" strokeWidth={0.5} />
+              <defs>
+                <radialGradient id="istGlow" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stopColor="#E82040" stopOpacity={0.4} />
+                  <stop offset="100%" stopColor="#E82040" stopOpacity={0} />
+                </radialGradient>
+                <filter id="mapGlow">
+                  <feGaussianBlur stdDeviation="1.5" result="blur" />
+                  <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                </filter>
+              </defs>
+
+              <Sphere id="sphere" fill="#040810" stroke="transparent" strokeWidth={0} />
+              <Graticule stroke="rgba(255,255,255,0.03)" strokeWidth={0.4} />
+
               <Geographies geography={GEO_URL}>
                 {({ geographies }) =>
                   geographies.map((geo) => (
                     <Geography key={geo.rsmKey} geography={geo}
-                      fill="#1a2035" stroke="#0d1525" strokeWidth={0.5}
-                      style={{ default: { outline: "none" }, hover: { outline: "none" }, pressed: { outline: "none" } }} />
+                      fill="#111827" stroke="#0a0f1e" strokeWidth={0.5}
+                      style={{
+                        default: { outline: "none" },
+                        hover: { fill: "#1a2540", outline: "none" },
+                        pressed: { outline: "none" },
+                      }} />
                   ))
                 }
               </Geographies>
 
-              {/* Routes from IST */}
-              {ROUTES.map((code) => {
+              {/* Route lines — great-circle paths */}
+              {Object.entries(ROUTE_STATUS).map(([code, status]) => {
                 const dest = AIRPORTS[code]
-                const ist = AIRPORTS.IST
                 if (!dest) return null
                 return (
-                  <line key={code}
-                    x1={ist[0]} y1={ist[1]} x2={dest[0]} y2={dest[1]}
-                    stroke="rgba(200,16,46,0.35)" strokeWidth={1}
+                  <Line
+                    key={code}
+                    from={AIRPORTS.IST}
+                    to={dest}
+                    stroke={LINE_STROKE[status]}
+                    strokeWidth={status === "disrupted" ? 1.2 : 0.8}
+                    strokeLinecap="round"
                   />
                 )
               })}
 
-              {/* Airport dots */}
-              {Object.entries(AIRPORTS).map(([code, coords]) => (
-                <Marker key={code} coordinates={coords}>
-                  {code === "IST" ? (
-                    <g>
-                      <circle r={10} fill="rgba(200,16,46,0.15)" />
-                      <circle r={5} fill="#E82040" />
-                      <circle r={3} fill="white" />
-                      <text y={-14} textAnchor="middle" fill="white" fontSize={8} fontWeight="bold">
-                        İstanbul{"\n"}(IST)
-                      </text>
-                    </g>
-                  ) : (
-                    <circle r={2.5} fill="rgba(255,255,255,0.5)" />
-                  )}
-                </Marker>
-              ))}
+              {/* Destination airport dots */}
+              {Object.entries(AIRPORTS).map(([code, coords]) => {
+                if (code === "IST") return null
+                const status = ROUTE_STATUS[code] ?? "normal"
+                const color = DOT_COLOR[status]
+                return (
+                  <Marker key={code} coordinates={coords}>
+                    <circle r={status === "disrupted" ? 3.5 : 2.5} fill={color}
+                      style={status !== "normal" ? { filter: `drop-shadow(0 0 3px ${color})` } : {}} />
+                  </Marker>
+                )
+              })}
+
+              {/* IST — hub marker */}
+              <Marker coordinates={AIRPORTS.IST}>
+                <g>
+                  <circle r={22} fill="rgba(200,16,46,0.07)" />
+                  <circle r={14} fill="rgba(200,16,46,0.12)" />
+                  <circle r={7}  fill="rgba(200,16,46,0.25)" />
+                  <circle r={4}  fill="#E82040" style={{ filter: "drop-shadow(0 0 6px #E82040)" }} />
+                  <circle r={2}  fill="white" />
+                  <text x={0} y={-16} textAnchor="middle" fill="white" fontSize={7.5} fontWeight="bold" fontFamily="system-ui" letterSpacing={0.5}>
+                    İSTANBUL
+                  </text>
+                  <text x={0} y={-8} textAnchor="middle" fill="rgba(255,255,255,0.5)" fontSize={6.5} fontFamily="system-ui">
+                    IST
+                  </text>
+                </g>
+              </Marker>
             </ComposableMap>
+
+            {/* Legend overlay */}
+            <div className="absolute bottom-3 left-3 flex items-center gap-4 px-3 py-1.5 rounded-lg"
+              style={{ background: "rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.07)" }}>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-white/50" />
+                <span className="text-white/40 text-[10px]">Normal</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-[#f59e0b]" />
+                <span className="text-white/40 text-[10px]">Gecikme</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-[#E82040]" />
+                <span className="text-white/40 text-[10px]">Aksama</span>
+              </div>
+            </div>
           </div>
 
           {/* Right Panel */}
@@ -157,8 +222,9 @@ export default function MainDashboard() {
             {/* AI Kriz Tahmincisi */}
             <div className="rounded-xl p-4"
               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-              <h3 className="text-white font-semibold text-sm mb-3">Yapay Zeka Kriz Tahmincisi</h3>
-              <div className="flex justify-center py-2">
+              <h3 className="text-white font-semibold text-sm mb-1">Yapay Zeka Kriz Tahmincisi</h3>
+              <p className="text-white/30 text-[10px] mb-3">Son güncelleme: 2 dk önce</p>
+              <div className="flex justify-center">
                 <Gauge value={75} />
               </div>
             </div>
@@ -167,21 +233,21 @@ export default function MainDashboard() {
             <div className="rounded-xl p-4"
               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <h3 className="text-white font-semibold text-sm mb-3">Tahmini Gecikmeler</h3>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-white/70 text-sm">Europe</span>
-                  <span className="text-sm">
-                    <span className="text-[#E82040] font-semibold">Major</span>
-                    <span className="text-white/50">, +2.5h</span>
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-white/70 text-sm">Asia</span>
-                  <span className="text-sm">
-                    <span className="text-[#f59e0b] font-semibold">Moderate</span>
-                    <span className="text-white/50">, +1h</span>
-                  </span>
-                </div>
+              <div className="space-y-2.5">
+                {[
+                  { region: "Avrupa",    level: "Kritik",   color: "#E82040", delay: "+2.5s" },
+                  { region: "Asya",      level: "Orta",     color: "#f59e0b", delay: "+1s"   },
+                  { region: "Kuzey Am.", level: "Normal",   color: "#10b981", delay: "+0.3s" },
+                ].map(r => (
+                  <div key={r.region} className="flex items-center justify-between">
+                    <span className="text-white/60 text-sm">{r.region}</span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ background: r.color }} />
+                      <span className="text-sm font-semibold" style={{ color: r.color }}>{r.level}</span>
+                      <span className="text-white/40 text-xs">{r.delay}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -190,18 +256,16 @@ export default function MainDashboard() {
               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <h3 className="text-white font-semibold text-sm mb-3">Yapay Zeka Önerileri</h3>
               <div className="space-y-3">
-                <div className="flex gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#E82040] mt-1.5 shrink-0" />
-                  <p className="text-white/60 text-xs leading-relaxed">
-                    Pre-allocate 50 hotel rooms in London due to incoming storm
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#E82040] mt-1.5 shrink-0" />
-                  <p className="text-white/60 text-xs leading-relaxed">
-                    Reroute flights over central Europe to avoid weather system.
-                  </p>
-                </div>
+                {[
+                  "Londra için 50 otel odası ön tahsis yap — fırtına uyarısı aktif",
+                  "Orta Avrupa hava sistemini aşmak için rota değiştir",
+                  "Berlin'den 3 uçuş için yedek ekip hazırla",
+                ].map((tip, i) => (
+                  <div key={i} className="flex gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#E82040] mt-1.5 shrink-0" />
+                    <p className="text-white/55 text-xs leading-relaxed">{tip}</p>
+                  </div>
+                ))}
               </div>
             </div>
 
