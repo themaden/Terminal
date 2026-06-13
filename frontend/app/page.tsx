@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Search } from "lucide-react"
 import { ComposableMap, Geographies, Geography, Graticule, Sphere, Marker, Line } from "react-simple-maps"
 import { Sidebar } from "@/components/dashboard/sidebar"
@@ -86,7 +87,50 @@ function LiveBadge() {
   )
 }
 
+interface DashboardStats {
+  riskIndex: number
+  europeLevel: "Kritik" | "Orta" | "Normal"
+  asiaLevel:   "Kritik" | "Orta" | "Normal"
+  naLevel:     "Kritik" | "Orta" | "Normal"
+  tips: string[]
+}
+
+const FALLBACK_STATS: DashboardStats = {
+  riskIndex: 75,
+  europeLevel: "Kritik",
+  asiaLevel:   "Orta",
+  naLevel:     "Normal",
+  tips: [
+    "Londra için 50 otel odası ön tahsis yap — fırtına uyarısı aktif",
+    "Orta Avrupa hava sistemini aşmak için rota değiştir",
+    "Berlin'den 3 uçuş için yedek ekip hazırla",
+  ],
+}
+
+const DELAY_COLOR: Record<string, string> = { Kritik: "#E82040", Orta: "#f59e0b", Normal: "#10b981" }
+
 export default function MainDashboard() {
+  const [stats, setStats] = useState<DashboardStats>(FALLBACK_STATS)
+
+  useEffect(() => {
+    const url   = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+    const token = typeof window !== "undefined" ? localStorage.getItem("jetnexus_token") || "" : ""
+    fetch(`${url}/api/v1/dashboard/stats`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => {
+        if (d.risk_index !== undefined) {
+          setStats(prev => ({
+            ...prev,
+            riskIndex:   d.risk_index           ?? prev.riskIndex,
+            europeLevel: d.europe_delay_level   ?? prev.europeLevel,
+            asiaLevel:   d.asia_delay_level     ?? prev.asiaLevel,
+            naLevel:     d.na_delay_level       ?? prev.naLevel,
+            tips:        d.ai_tips?.length ? d.ai_tips : prev.tips,
+          }))
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   return (
     <div className="h-screen flex overflow-hidden"
@@ -225,7 +269,7 @@ export default function MainDashboard() {
               <h3 className="text-white font-semibold text-sm mb-1">Yapay Zeka Kriz Tahmincisi</h3>
               <p className="text-white/30 text-[10px] mb-3">Son güncelleme: 2 dk önce</p>
               <div className="flex justify-center">
-                <Gauge value={75} />
+                <Gauge value={stats.riskIndex} />
               </div>
             </div>
 
@@ -235,19 +279,22 @@ export default function MainDashboard() {
               <h3 className="text-white font-semibold text-sm mb-3">Tahmini Gecikmeler</h3>
               <div className="space-y-2.5">
                 {[
-                  { region: "Avrupa",    level: "Kritik",   color: "#E82040", delay: "+2.5s" },
-                  { region: "Asya",      level: "Orta",     color: "#f59e0b", delay: "+1s"   },
-                  { region: "Kuzey Am.", level: "Normal",   color: "#10b981", delay: "+0.3s" },
-                ].map(r => (
-                  <div key={r.region} className="flex items-center justify-between">
-                    <span className="text-white/60 text-sm">{r.region}</span>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full" style={{ background: r.color }} />
-                      <span className="text-sm font-semibold" style={{ color: r.color }}>{r.level}</span>
-                      <span className="text-white/40 text-xs">{r.delay}</span>
+                  { region: "Avrupa",    level: stats.europeLevel, delay: "+2.5s" },
+                  { region: "Asya",      level: stats.asiaLevel,   delay: "+1s"   },
+                  { region: "Kuzey Am.", level: stats.naLevel,     delay: "+0.3s" },
+                ].map(r => {
+                  const color = DELAY_COLOR[r.level]
+                  return (
+                    <div key={r.region} className="flex items-center justify-between">
+                      <span className="text-white/60 text-sm">{r.region}</span>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
+                        <span className="text-sm font-semibold" style={{ color }}>{r.level}</span>
+                        <span className="text-white/40 text-xs">{r.delay}</span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
 
@@ -256,11 +303,7 @@ export default function MainDashboard() {
               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <h3 className="text-white font-semibold text-sm mb-3">Yapay Zeka Önerileri</h3>
               <div className="space-y-3">
-                {[
-                  "Londra için 50 otel odası ön tahsis yap — fırtına uyarısı aktif",
-                  "Orta Avrupa hava sistemini aşmak için rota değiştir",
-                  "Berlin'den 3 uçuş için yedek ekip hazırla",
-                ].map((tip, i) => (
+                {stats.tips.map((tip, i) => (
                   <div key={i} className="flex gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-[#E82040] mt-1.5 shrink-0" />
                     <p className="text-white/55 text-xs leading-relaxed">{tip}</p>
