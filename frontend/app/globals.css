@@ -54,45 +54,47 @@
 }
 
 :root {
-  /* Dark aviation theme - default */
-  --background: #0a1628;
-  --foreground: #e2e8f0;
-  --card: #0f1f35;
-  --card-foreground: #e2e8f0;
-  --popover: #0f1f35;
-  --popover-foreground: #e2e8f0;
-  --primary: #00d4ff;
-  --primary-foreground: #0a1628;
-  --secondary: #1a3a5c;
-  --secondary-foreground: #e2e8f0;
-  --muted: #162a43;
+  /* THY Dark Aviation Theme */
+  --background: #080a12;
+  --foreground: #f0f2f8;
+  --card: rgba(255,255,255,0.04);
+  --card-foreground: #f0f2f8;
+  --popover: #0f1220;
+  --popover-foreground: #f0f2f8;
+  --primary: #C8102E;
+  --primary-foreground: #ffffff;
+  --secondary: #1a1f30;
+  --secondary-foreground: #94a3b8;
+  --muted: #141828;
   --muted-foreground: #64748b;
-  --accent: #1e4976;
-  --accent-foreground: #e2e8f0;
+  --accent: #1e2538;
+  --accent-foreground: #f0f2f8;
   --destructive: #ef4444;
-  --border: #1e3a5f;
-  --input: #1e3a5f;
-  --ring: #00d4ff;
+  --border: rgba(255,255,255,0.08);
+  --input: rgba(255,255,255,0.06);
+  --ring: #C8102E;
   --warning: #f59e0b;
-  --warning-foreground: #0a1628;
+  --warning-foreground: #ffffff;
   --success: #10b981;
-  --success-foreground: #0a1628;
+  --success-foreground: #ffffff;
   --info: #3b82f6;
   --info-foreground: #ffffff;
-  --chart-1: #00d4ff;
+  --chart-1: #C8102E;
   --chart-2: #10b981;
   --chart-3: #f59e0b;
   --chart-4: #8b5cf6;
   --chart-5: #ec4899;
   --radius: 0.5rem;
-  --sidebar: #0c1929;
-  --sidebar-foreground: #e2e8f0;
-  --sidebar-primary: #00d4ff;
-  --sidebar-primary-foreground: #0a1628;
-  --sidebar-accent: #1a3a5c;
-  --sidebar-accent-foreground: #e2e8f0;
-  --sidebar-border: #1e3a5f;
-  --sidebar-ring: #00d4ff;
+  --sidebar: #0d0f1a;
+  --sidebar-foreground: #f0f2f8;
+  --sidebar-primary: #C8102E;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgba(255,255,255,0.06);
+  --sidebar-accent-foreground: #f0f2f8;
+  --sidebar-border: rgba(255,255,255,0.06);
+  --sidebar-ring: #C8102E;
+  --thy-red: #C8102E;
+  --thy-red-glow: rgba(200, 16, 46, 0.3);
 }
 
 @layer base {
@@ -101,57 +103,118 @@
   }
   body {
     @apply bg-background text-foreground;
+    background:
+      radial-gradient(ellipse 70% 50% at 5% 5%, rgba(150,10,30,0.12) 0%, transparent 55%),
+      radial-gradient(ellipse 50% 40% at 95% 95%, rgba(100,5,20,0.08) 0%, transparent 45%),
+      linear-gradient(135deg, #0f1222 0%, #080a12 60%, #0a0c18 100%);
+    min-height: 100vh;
   }
   html {
     @apply font-sans;
   }
 }
 
-/* Custom scrollbar for aviation theme */
+/* Custom scrollbar for dark THY theme */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
-
 ::-webkit-scrollbar-track {
-  background: #0a1628;
+  background: #0a0c14;
 }
-
 ::-webkit-scrollbar-thumb {
-  background: #1e3a5f;
+  background: rgba(200,16,46,0.3);
   border-radius: 3px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: #2a4a6f;
+  background: rgba(200,16,46,0.5);
 }
 
-/* Map container styles */
-.map-container {
-  background: linear-gradient(180deg, #0f1f35 0%, #162a43 100%);
+/* THY card style */
+.thy-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+}
+
+/* Red glow effect */
+.thy-glow {
+  box-shadow: 0 0 20px rgba(200,16,46,0.3), 0 0 40px rgba(200,16,46,0.1);
 }
 
 /* Pulse animation for live indicator */
 @keyframes pulse-live {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.2); }
 }
-
 .animate-pulse-live {
-  animation: pulse-live 2s ease-in-out infinite;
+  animation: pulse-live 1.5s ease-in-out infinite;
 }
 
-/* Flight path animation */
+/* Gauge arc animation */
+@keyframes gauge-fill {
+  from { stroke-dashoffset: 340; }
+}
+.gauge-arc {
+  animation: gauge-fill 1.2s ease-out forwards;
+}
+
+/* Map flight path animation */
 @keyframes dash {
-  to {
-    stroke-dashoffset: -20;
-  }
+  to { stroke-dashoffset: -20; }
 }
-
 .animate-dash {
   animation: dash 1s linear infinite;
+}
+
+/* Glowing flight route */
+@keyframes route-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+.route-pulse {
+  animation: route-pulse 2s ease-in-out infinite;
+}
+
+/* Slide in animation */
+@keyframes slide-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out forwards;
+}
+
+/* Toggle switch */
+.thy-toggle {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.thy-toggle.active {
+  background: #C8102E;
+}
+.thy-toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+.thy-toggle.active::after {
+  transform: translateX(20px);
+}
+
+/* Map container */
+.map-container svg {
+  display: block;
 }
