@@ -1,21 +1,27 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Search, Activity } from "lucide-react"
-import { ComposableMap, Geographies, Geography, Graticule, Sphere, Marker, Line } from "react-simple-maps"
+import dynamic from "next/dynamic"
 import { Sidebar } from "@/components/dashboard/sidebar"
 
-const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
+// Three.js / WebGL — SSR devre dışı
+const Globe = dynamic(() => import("react-globe.gl"), { ssr: false })
+
+// ─────────────────────────────────────────────
+//  Havalimanı koordinatları  [lng, lat]
+// ─────────────────────────────────────────────
+const IST_COORDS: [number, number] = [28.82, 40.98]
 
 const AIRPORTS: Record<string, [number, number]> = {
-  IST: [28.82, 40.98],
+  IST: IST_COORDS,
   // Avrupa
   LHR: [-0.45, 51.47], CDG: [2.55, 49.01],  FRA: [8.57, 50.03],
   AMS: [4.76, 52.31],  BER: [13.40, 52.55], MAD: [-3.57, 40.47],
   FCO: [12.25, 41.80], VIE: [16.57, 48.11], ZRH: [8.55, 47.46],
   BCN: [2.07, 41.30],  ATH: [23.94, 37.94], MUC: [11.79, 48.35],
   LIS: [-9.14, 38.77], CPH: [12.65, 55.62], ARN: [17.93, 59.65],
-  // BDT / Doğu Avrupa
+  // BDT
   SVO: [37.41, 55.97],
   // Amerika
   JFK: [-73.78, 40.64], LAX: [-118.4, 33.94], ORD: [-87.9, 41.97],
@@ -31,28 +37,121 @@ const AIRPORTS: Record<string, [number, number]> = {
 }
 
 type RouteStatus = "normal" | "warning" | "disrupted"
+type PointStatus = RouteStatus | "hub"
 
 const ROUTE_STATUS: Record<string, RouteStatus> = {
-  LHR: "disrupted", CDG: "warning",  FRA: "warning",  AMS: "normal",
-  BER: "disrupted", MAD: "normal",   FCO: "normal",   VIE: "normal",
-  ZRH: "normal",    BCN: "normal",   ATH: "normal",   MUC: "normal",
-  LIS: "normal",    CPH: "normal",   ARN: "normal",   SVO: "warning",
-  JFK: "normal",    LAX: "normal",   ORD: "normal",   MIA: "normal",
+  LHR: "disrupted", CDG: "warning", FRA: "warning", AMS: "normal",
+  BER: "disrupted", MAD: "normal",  FCO: "normal",  VIE: "normal",
+  ZRH: "normal",    BCN: "normal",  ATH: "normal",  MUC: "normal",
+  LIS: "normal",    CPH: "normal",  ARN: "normal",  SVO: "warning",
+  JFK: "normal",    LAX: "normal",  ORD: "normal",  MIA: "normal",
   GRU: "normal",    EZE: "normal",
-  DXB: "normal",    DOH: "normal",   CAI: "normal",   ADD: "normal",
+  DXB: "normal",    DOH: "normal",  CAI: "normal",  ADD: "normal",
   JNB: "normal",    CMN: "normal",
-  DEL: "normal",    BOM: "normal",   SIN: "normal",   BKK: "normal",
-  KUL: "normal",    CGK: "normal",   NRT: "normal",   PEK: "normal",
+  DEL: "normal",    BOM: "normal",  SIN: "normal",  BKK: "normal",
+  KUL: "normal",    CGK: "normal",  NRT: "normal",  PEK: "normal",
   PVG: "normal",    SYD: "normal",
 }
 
-const DOT_COLOR: Record<RouteStatus, string> = {
-  normal:    "rgba(180,200,255,0.45)",
-  warning:   "#f59e0b",
-  disrupted: "#E82040",
+// ─────────────────────────────────────────────
+//  Globe.gl veri nesneleri
+// ─────────────────────────────────────────────
+type ArcDatum = {
+  code: string
+  startLat: number; startLng: number
+  endLat: number;   endLng: number
+  status: RouteStatus
+  initialGap: number   // sabit rassal ofseti (yeniden render'da değişmez)
 }
 
-// ────────── Gauge ──────────
+type PointDatum = {
+  code: string
+  lat: number; lng: number
+  status: PointStatus
+}
+
+const ARCS: ArcDatum[] = Object.entries(ROUTE_STATUS).flatMap(([code, status]) => {
+  const d = AIRPORTS[code]
+  if (!d) return []
+  return [{
+    code,
+    startLat: IST_COORDS[1], startLng: IST_COORDS[0],
+    endLat:   d[1],           endLng:   d[0],
+    status,
+    initialGap: Math.random(),
+  }]
+})
+
+const POINTS: PointDatum[] = Object.entries(AIRPORTS).map(([code, [lng, lat]]) => ({
+  code, lat, lng,
+  status: code === "IST" ? "hub" : (ROUTE_STATUS[code] ?? "normal"),
+}))
+
+const IST_RINGS = [{ lat: IST_COORDS[1], lng: IST_COORDS[0] }]
+
+// ─────────────────────────────────────────────
+//  Globe.gl accessor fonksiyonlar
+// ─────────────────────────────────────────────
+const arcColor = (d: object): string[] => {
+  const { status } = d as ArcDatum
+  if (status === "disrupted") return ["rgba(232,32,64,0)", "rgba(232,32,64,0.95)", "rgba(232,32,64,0)"]
+  if (status === "warning")   return ["rgba(245,158,11,0)", "rgba(245,158,11,0.88)", "rgba(245,158,11,0)"]
+  return ["rgba(100,150,230,0)", "rgba(100,150,230,0.28)", "rgba(100,150,230,0)"]
+}
+
+const arcAnimTime = (d: object): number => {
+  const { status } = d as ArcDatum
+  return status === "disrupted" ? 1050 : status === "warning" ? 1700 : 4200
+}
+
+const arcWidth = (d: object): number => {
+  const { status } = d as ArcDatum
+  return status === "disrupted" ? 0.70 : status === "warning" ? 0.50 : 0.22
+}
+
+const pointColor = (d: object): string => {
+  const { status } = d as PointDatum
+  if (status === "hub")       return "#C8102E"
+  if (status === "disrupted") return "#E82040"
+  if (status === "warning")   return "#f59e0b"
+  return "rgba(170,195,255,0.50)"
+}
+
+const pointRadius = (d: object): number => {
+  const { status } = d as PointDatum
+  if (status === "hub")       return 0.55
+  if (status === "disrupted") return 0.33
+  if (status === "warning")   return 0.25
+  return 0.11
+}
+
+const pointAlt = (d: object): number => {
+  const { status } = d as PointDatum
+  if (status === "hub")       return 0.035
+  if (status !== "normal")    return 0.014
+  return 0.004
+}
+
+const labelText  = (d: object) => (d as PointDatum).code
+const labelColor = (d: object): string => {
+  const { status } = d as PointDatum
+  if (status === "hub")       return "#ffffff"
+  if (status === "disrupted") return "#E82040"
+  if (status === "warning")   return "#f59e0b"
+  return "rgba(200,220,255,0.7)"
+}
+const labelSize = (d: object): number => {
+  const { status } = d as PointDatum
+  return status === "hub" ? 0.75 : 0.52
+}
+const labelAlt = (d: object): number => {
+  const { status } = d as PointDatum
+  return status === "hub" ? 0.055 : 0.022
+}
+
+// ─────────────────────────────────────────────
+//  Gauge
+// ─────────────────────────────────────────────
 function Gauge({ value }: { value: number }) {
   const r = 60, cx = 80, cy = 80
   const startAngle = 215, totalSweep = 250
@@ -66,22 +165,15 @@ function Gauge({ value }: { value: number }) {
   const valPath = `M ${s.x} ${s.y} A ${r} ${r} 0 ${la} 1 ${ve.x} ${ve.y}`
   return (
     <svg width="160" height="110" viewBox="0 0 160 110">
-      <defs>
-        <filter id="gaugeGlow">
-          <feGaussianBlur stdDeviation="3" result="b" />
-          <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
-        </filter>
-      </defs>
       <path d={bgPath} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={10} strokeLinecap="round" />
       <path d={valPath} fill="none" stroke="#E82040" strokeWidth={10} strokeLinecap="round"
-        style={{ filter: "drop-shadow(0 0 8px rgba(232,32,64,0.8))" }} />
+        style={{ filter: "drop-shadow(0 0 8px rgba(232,32,64,0.85))" }} />
       <text x="80" y="82" textAnchor="middle" fill="white" fontSize="26" fontWeight="bold" fontFamily="system-ui">{value}%</text>
       <text x="80" y="98" textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize="9" fontFamily="system-ui">RİSK ENDEKSİ</text>
     </svg>
   )
 }
 
-// ────────── LiveBadge ──────────
 function LiveBadge() {
   return (
     <div className="flex items-center gap-2 px-3 py-1.5 rounded-full"
@@ -92,7 +184,9 @@ function LiveBadge() {
   )
 }
 
-// ────────── Stats interfaces ──────────
+// ─────────────────────────────────────────────
+//  Dashboard stats
+// ─────────────────────────────────────────────
 interface DashboardStats {
   riskIndex: number
   europeLevel: "Kritik" | "Orta" | "Normal"
@@ -101,11 +195,8 @@ interface DashboardStats {
   tips: string[]
 }
 
-const FALLBACK_STATS: DashboardStats = {
-  riskIndex: 75,
-  europeLevel: "Kritik",
-  asiaLevel:   "Orta",
-  naLevel:     "Normal",
+const FALLBACK: DashboardStats = {
+  riskIndex: 75, europeLevel: "Kritik", asiaLevel: "Orta", naLevel: "Normal",
   tips: [
     "Londra için 50 otel odası ön tahsis yap — fırtına uyarısı aktif",
     "Orta Avrupa hava sistemini aşmak için rota değiştir",
@@ -115,29 +206,67 @@ const FALLBACK_STATS: DashboardStats = {
 
 const DELAY_COLOR: Record<string, string> = { Kritik: "#E82040", Orta: "#f59e0b", Normal: "#10b981" }
 
-const DISRUPTED_COUNT = Object.values(ROUTE_STATUS).filter(s => s === "disrupted").length
-const WARNING_COUNT   = Object.values(ROUTE_STATUS).filter(s => s === "warning").length
-const TOTAL_ROUTES    = Object.keys(ROUTE_STATUS).length
+const DISRUPTED_N = Object.values(ROUTE_STATUS).filter(s => s === "disrupted").length
+const WARNING_N   = Object.values(ROUTE_STATUS).filter(s => s === "warning").length
+const TOTAL_N     = Object.keys(ROUTE_STATUS).length
 
+// Etiket: IST + disrupted + warning havalimanları
+const LABEL_POINTS = POINTS.filter(p => p.status === "hub" || p.status === "disrupted" || p.status === "warning")
+
+// ─────────────────────────────────────────────
+//  Ana bileşen
+// ─────────────────────────────────────────────
 export default function MainDashboard() {
-  const [stats, setStats] = useState<DashboardStats>(FALLBACK_STATS)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const globeRef   = useRef<any>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [dims, setDims]   = useState({ w: 0, h: 0 })
+  const [stats, setStats] = useState<DashboardStats>(FALLBACK)
 
+  // Konteyner boyutunu ölç
+  useEffect(() => {
+    const measure = () => {
+      if (containerRef.current) {
+        setDims({ w: containerRef.current.clientWidth, h: containerRef.current.clientHeight })
+      }
+    }
+    measure()
+    window.addEventListener("resize", measure)
+    return () => window.removeEventListener("resize", measure)
+  }, [])
+
+  // Globe hazır olduğunda: kamera + oto-döndür
+  const onGlobeReady = () => {
+    if (!globeRef.current) return
+    globeRef.current.pointOfView({ lat: 30, lng: 28, altitude: 2.0 }, 1500)
+    const ctrl = globeRef.current.controls()
+    if (ctrl) {
+      ctrl.autoRotate      = true
+      ctrl.autoRotateSpeed = 0.10
+      ctrl.enableZoom      = true
+      ctrl.minDistance     = 220
+      ctrl.maxDistance     = 750
+      ctrl.enableDamping   = true
+      ctrl.dampingFactor   = 0.08
+    }
+  }
+
+  // Backend stats
   useEffect(() => {
     const url   = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
     const token = typeof window !== "undefined" ? localStorage.getItem("jetnexus_token") || "" : ""
     fetch(`${url}/api/v1/dashboard/stats`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(d => {
-        if (d.risk_index !== undefined) {
-          setStats(prev => ({
-            ...prev,
-            riskIndex:   d.risk_index           ?? prev.riskIndex,
-            europeLevel: d.europe_delay_level   ?? prev.europeLevel,
-            asiaLevel:   d.asia_delay_level     ?? prev.asiaLevel,
-            naLevel:     d.na_delay_level       ?? prev.naLevel,
-            tips:        d.ai_tips?.length ? d.ai_tips : prev.tips,
+        if (d.risk_index !== undefined)
+          setStats(p => ({
+            ...p,
+            riskIndex:   d.risk_index         ?? p.riskIndex,
+            europeLevel: d.europe_delay_level  ?? p.europeLevel,
+            asiaLevel:   d.asia_delay_level    ?? p.asiaLevel,
+            naLevel:     d.na_delay_level      ?? p.naLevel,
+            tips:        d.ai_tips?.length ? d.ai_tips : p.tips,
           }))
-        }
       })
       .catch(() => {})
   }, [])
@@ -149,7 +278,7 @@ export default function MainDashboard() {
 
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        {/* Top Bar */}
+        {/* ── Üst Bar ── */}
         <div className="flex items-center justify-between px-6 pt-5 pb-3 shrink-0">
           <h1 className="text-2xl font-bold text-white tracking-tight">Global Operasyon Komuta Merkezi</h1>
           <div className="flex items-center gap-3">
@@ -163,209 +292,112 @@ export default function MainDashboard() {
           </div>
         </div>
 
-        {/* Content */}
+        {/* ── İçerik ── */}
         <div className="flex-1 flex gap-4 px-6 pb-5 overflow-hidden">
 
-          {/* ══════════ MAP ══════════ */}
-          <div className="flex-1 rounded-2xl overflow-hidden relative"
-            style={{ background: "#020508", border: "1px solid rgba(100,130,200,0.12)" }}>
+          {/* ══ 3D DÜNYA KÜRESİ ══ */}
+          <div ref={containerRef} className="flex-1 rounded-2xl overflow-hidden relative"
+            style={{ background: "#020407", border: "1px solid rgba(100,130,220,0.13)" }}>
 
-            <ComposableMap
-              projection="geoNaturalEarth1"
-              style={{ width: "100%", height: "100%" }}
-              projectionConfig={{ scale: 172, center: [18, 15] }}
-            >
-              <defs>
-                {/* Ocean gradient */}
-                <radialGradient id="oceanGrad" cx="35%" cy="40%" r="70%">
-                  <stop offset="0%"   stopColor="#060c1c" />
-                  <stop offset="100%" stopColor="#020508" />
-                </radialGradient>
-                {/* Glow filters */}
-                <filter id="redGlow"  x="-80%" y="-80%" width="260%" height="260%">
-                  <feGaussianBlur stdDeviation="3.5" result="b" />
-                  <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
-                </filter>
-                <filter id="warnGlow" x="-60%" y="-60%" width="220%" height="220%">
-                  <feGaussianBlur stdDeviation="2.5" result="b" />
-                  <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
-                </filter>
-                <filter id="hubGlow"  x="-100%" y="-100%" width="300%" height="300%">
-                  <feGaussianBlur stdDeviation="5" result="b" />
-                  <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
-                </filter>
-              </defs>
+            {dims.w > 0 && (
+              <Globe
+                ref={globeRef}
+                width={dims.w}
+                height={dims.h}
+                onGlobeReady={onGlobeReady}
+                backgroundColor="rgba(0,0,0,0)"
 
-              <Sphere id="sphere" fill="url(#oceanGrad)" stroke="rgba(80,120,200,0.06)" strokeWidth={0.6} />
-              <Graticule stroke="rgba(80,110,180,0.04)" strokeWidth={0.5} />
+                /* ── Küre görünümü ── */
+                globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
+                atmosphereColor="#1a3f98"
+                atmosphereAltitude={0.20}
 
-              <Geographies geography={GEO_URL}>
-                {({ geographies }) => geographies.map(geo => (
-                  <Geography key={geo.rsmKey} geography={geo}
-                    fill="#0d1628" stroke="#060e1c" strokeWidth={0.6}
-                    style={{
-                      default: { outline: "none" },
-                      hover:   { fill: "#162040", outline: "none" },
-                      pressed: { outline: "none" },
-                    }} />
-                ))}
-              </Geographies>
+                /* ── Uçuş arkleri (hareketli "uçak izleri") ── */
+                arcsData={ARCS}
+                arcStartLat="startLat"
+                arcStartLng="startLng"
+                arcEndLat="endLat"
+                arcEndLng="endLng"
+                arcColor={arcColor}
+                arcDashLength={0.04}
+                arcDashGap={0.96}
+                arcDashAnimateTime={arcAnimTime}
+                arcDashInitialGap="initialGap"
+                arcStroke={arcWidth}
+                arcAltitudeAutoScale={0.40}
 
-              {/* ── Normal routes (drawn first / bottom layer) ── */}
-              {Object.entries(ROUTE_STATUS)
-                .filter(([, s]) => s === "normal")
-                .map(([code]) => {
-                  const dest = AIRPORTS[code]
-                  if (!dest) return null
-                  return (
-                    <Line key={`n-${code}`} from={AIRPORTS.IST} to={dest}
-                      stroke="rgba(120,150,220,0.15)" strokeWidth={0.7} strokeLinecap="round" />
-                  )
-                })}
+                /* ── Havalimanı noktaları ── */
+                pointsData={POINTS}
+                pointLat="lat"
+                pointLng="lng"
+                pointColor={pointColor}
+                pointRadius={pointRadius}
+                pointAltitude={pointAlt}
+                pointsMerge={false}
 
-              {/* ── Warning routes ── */}
-              {Object.entries(ROUTE_STATUS)
-                .filter(([, s]) => s === "warning")
-                .map(([code]) => {
-                  const dest = AIRPORTS[code]
-                  if (!dest) return null
-                  return (
-                    <Line key={`w-${code}`} from={AIRPORTS.IST} to={dest}
-                      stroke="rgba(245,158,11,0.60)" strokeWidth={1.4} strokeLinecap="round" />
-                  )
-                })}
+                /* ── IST nabız halkaları ── */
+                ringsData={IST_RINGS}
+                ringLat="lat"
+                ringLng="lng"
+                ringColor={() => (t: number) => `rgba(200,16,46,${Math.sqrt(1 - t) * 0.85})`}
+                ringMaxRadius={4.8}
+                ringPropagationSpeed={2.4}
+                ringRepeatPeriod={850}
 
-              {/* ── Disrupted routes (top layer, thickest) ── */}
-              {Object.entries(ROUTE_STATUS)
-                .filter(([, s]) => s === "disrupted")
-                .map(([code]) => {
-                  const dest = AIRPORTS[code]
-                  if (!dest) return null
-                  return (
-                    <Line key={`d-${code}`} from={AIRPORTS.IST} to={dest}
-                      stroke="rgba(232,32,64,0.85)" strokeWidth={2.0} strokeLinecap="round" />
-                  )
-                })}
+                /* ── Havalimanı etiketleri (IST + disrupted + warning) ── */
+                labelsData={LABEL_POINTS}
+                labelLat="lat"
+                labelLng="lng"
+                labelText={labelText}
+                labelColor={labelColor}
+                labelSize={labelSize}
+                labelAltitude={labelAlt}
+                labelResolution={3}
+                labelIncludeDot={false}
+              />
+            )}
 
-              {/* ── Destination airport markers ── */}
-              {Object.entries(AIRPORTS).map(([code, coords]) => {
-                if (code === "IST") return null
-                const status = ROUTE_STATUS[code] ?? "normal"
-                const color  = DOT_COLOR[status]
-                const dotR   = status === "disrupted" ? 4.5 : status === "warning" ? 3.5 : 2.0
-
-                return (
-                  <Marker key={code} coordinates={coords}>
-                    <g>
-                      {/* Animated ring — disrupted */}
-                      {status === "disrupted" && (
-                        <circle r={0} fill="none" stroke="#E82040" strokeWidth={1.5} opacity={0}>
-                          <animate attributeName="r"       from={dotR.toString()} to={(dotR * 5.5).toString()} dur="1.8s" repeatCount="indefinite" />
-                          <animate attributeName="opacity" from="0.75" to="0" dur="1.8s" repeatCount="indefinite" />
-                        </circle>
-                      )}
-                      {/* Animated ring — warning */}
-                      {status === "warning" && (
-                        <circle r={0} fill="none" stroke="#f59e0b" strokeWidth={1} opacity={0}>
-                          <animate attributeName="r"       from={dotR.toString()} to={(dotR * 4.5).toString()} dur="2.6s" repeatCount="indefinite" />
-                          <animate attributeName="opacity" from="0.55" to="0" dur="2.6s" repeatCount="indefinite" />
-                        </circle>
-                      )}
-                      {/* Core dot */}
-                      <circle r={dotR} fill={color}
-                        filter={status === "disrupted" ? "url(#redGlow)" : status === "warning" ? "url(#warnGlow)" : undefined}
-                        style={status !== "normal" ? { filter: `drop-shadow(0 0 ${dotR + 2}px ${color})` } : {}}
-                      />
-                      {/* Airport code label */}
-                      {status !== "normal" && (
-                        <text y={-(dotR + 4.5)} textAnchor="middle"
-                          fill={color} fontSize={6} fontWeight="bold" fontFamily="system-ui">
-                          {code}
-                        </text>
-                      )}
-                    </g>
-                  </Marker>
-                )
-              })}
-
-              {/* ══ IST HUB — animated pulse ══ */}
-              <Marker coordinates={AIRPORTS.IST}>
-                <g>
-                  {/* Wave 1 */}
-                  <circle r={0} fill="none" stroke="rgba(232,32,64,0.60)" strokeWidth={1.8}>
-                    <animate attributeName="r"       from="9" to="52" dur="2.6s" repeatCount="indefinite" />
-                    <animate attributeName="opacity" from="0.70" to="0" dur="2.6s" repeatCount="indefinite" />
-                  </circle>
-                  {/* Wave 2 */}
-                  <circle r={0} fill="none" stroke="rgba(232,32,64,0.40)" strokeWidth={1.2}>
-                    <animate attributeName="r"       from="9" to="52" dur="2.6s" begin="0.87s" repeatCount="indefinite" />
-                    <animate attributeName="opacity" from="0.55" to="0" dur="2.6s" begin="0.87s" repeatCount="indefinite" />
-                  </circle>
-                  {/* Wave 3 */}
-                  <circle r={0} fill="none" stroke="rgba(232,32,64,0.22)" strokeWidth={0.8}>
-                    <animate attributeName="r"       from="9" to="52" dur="2.6s" begin="1.74s" repeatCount="indefinite" />
-                    <animate attributeName="opacity" from="0.40" to="0" dur="2.6s" begin="1.74s" repeatCount="indefinite" />
-                  </circle>
-
-                  {/* Static glow halos */}
-                  <circle r={26} fill="rgba(200,16,46,0.05)" />
-                  <circle r={16} fill="rgba(200,16,46,0.10)" />
-                  <circle r={9}  fill="rgba(200,16,46,0.20)" />
-
-                  {/* Core */}
-                  <circle r={5.5} fill="#C8102E" filter="url(#hubGlow)"
-                    style={{ filter: "drop-shadow(0 0 12px rgba(200,16,46,0.95))" }} />
-                  <circle r={2.5} fill="white" style={{ filter: "drop-shadow(0 0 3px white)" }} />
-
-                  {/* Labels */}
-                  <text y={-30} textAnchor="middle" fill="white"
-                    fontSize={9.5} fontWeight="bold" fontFamily="system-ui" letterSpacing={1.5}>
-                    İSTANBUL
-                  </text>
-                  <text y={-18} textAnchor="middle" fill="rgba(232,32,64,0.85)"
-                    fontSize={7.5} fontWeight="bold" fontFamily="system-ui" letterSpacing={2.5}>
-                    IST HUB
-                  </text>
-                </g>
-              </Marker>
-            </ComposableMap>
-
-            {/* ── Top-left overlay: network stats ── */}
-            <div className="absolute top-3 left-3 flex items-center gap-2">
+            {/* Sol üst: ağ istatistikleri */}
+            <div className="absolute top-3 left-3 flex items-center gap-2 pointer-events-none">
               <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
-                style={{ background: "rgba(6,10,24,0.80)", border: "1px solid rgba(100,130,200,0.12)", backdropFilter: "blur(8px)" }}>
+                style={{ background: "rgba(2,4,10,0.82)", border: "1px solid rgba(100,130,200,0.14)", backdropFilter: "blur(10px)" }}>
                 <Activity className="w-3 h-3 text-white/35" />
-                <span className="text-white/45 text-[10px] font-semibold">{TOTAL_ROUTES} Güzergah</span>
+                <span className="text-white/45 text-[10px] font-semibold">{TOTAL_N} Güzergah</span>
               </div>
               <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
-                style={{ background: "rgba(232,32,64,0.15)", border: "1px solid rgba(232,32,64,0.35)", backdropFilter: "blur(8px)" }}>
+                style={{ background: "rgba(232,32,64,0.18)", border: "1px solid rgba(232,32,64,0.40)", backdropFilter: "blur(10px)" }}>
                 <div className="w-1.5 h-1.5 rounded-full bg-[#E82040] animate-pulse" />
-                <span className="text-[#E82040] text-[10px] font-bold">{DISRUPTED_COUNT} Aksama</span>
+                <span className="text-[#E82040] text-[10px] font-bold">{DISRUPTED_N} Aksama</span>
               </div>
               <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
-                style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.28)", backdropFilter: "blur(8px)" }}>
+                style={{ background: "rgba(245,158,11,0.13)", border: "1px solid rgba(245,158,11,0.30)", backdropFilter: "blur(10px)" }}>
                 <div className="w-1.5 h-1.5 rounded-full bg-[#f59e0b]" />
-                <span className="text-[#f59e0b] text-[10px] font-bold">{WARNING_COUNT} Gecikme</span>
+                <span className="text-[#f59e0b] text-[10px] font-bold">{WARNING_N} Gecikme</span>
               </div>
             </div>
 
-            {/* ── Bottom legend ── */}
-            <div className="absolute bottom-3 left-3 flex items-center gap-4 px-3.5 py-2 rounded-xl"
-              style={{ background: "rgba(2,5,12,0.80)", border: "1px solid rgba(255,255,255,0.07)", backdropFilter: "blur(10px)" }}>
+            {/* Alt: legend */}
+            <div className="absolute bottom-3 left-3 flex items-center gap-4 px-3.5 py-2 rounded-xl pointer-events-none"
+              style={{ background: "rgba(2,4,10,0.84)", border: "1px solid rgba(255,255,255,0.07)", backdropFilter: "blur(12px)" }}>
               {[
-                { color: "rgba(180,200,255,0.45)", label: "Normal Sefer"      },
-                { color: "#f59e0b",                label: "Gecikme Uyarısı"  },
-                { color: "#E82040",                label: "Aksama / İptal"   },
+                { color: "rgba(170,195,255,0.5)", label: "Normal Sefer"     },
+                { color: "#f59e0b",               label: "Gecikme Uyarısı" },
+                { color: "#E82040",               label: "Aksama / İptal"  },
               ].map(l => (
                 <div key={l.label} className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: l.color }} />
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ background: l.color }} />
                   <span className="text-white/40 text-[10px]">{l.label}</span>
                 </div>
               ))}
             </div>
+
+            {/* Sağ alt: kontrol ipucu */}
+            <div className="absolute bottom-3 right-3 pointer-events-none">
+              <p className="text-white/15 text-[9px]">Sürükle: döndür &nbsp;·&nbsp; Tekerlek: zoom</p>
+            </div>
           </div>
 
-          {/* ══════════ RIGHT PANEL ══════════ */}
+          {/* ══ SAĞ PANEL ══ */}
           <div className="w-[280px] shrink-0 flex flex-col gap-3">
 
             {/* AI Risk Gauge */}
@@ -378,7 +410,7 @@ export default function MainDashboard() {
               </div>
             </div>
 
-            {/* Delay by region */}
+            {/* Bölgesel gecikmeler */}
             <div className="rounded-xl p-4"
               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <h3 className="text-white font-semibold text-sm mb-3">Tahmini Gecikmeler</h3>
@@ -403,7 +435,7 @@ export default function MainDashboard() {
               </div>
             </div>
 
-            {/* AI Tips */}
+            {/* AI önerileri */}
             <div className="rounded-xl p-4 flex-1"
               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <h3 className="text-white font-semibold text-sm mb-3">Yapay Zeka Önerileri</h3>

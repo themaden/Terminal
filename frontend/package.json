@@ -20,6 +20,7 @@
     "prop-types": "^15.8.1",
     "react": "^19",
     "react-dom": "^19",
+    "react-globe.gl": "^2.38.0",
     "react-is": "^19.0.0",
     "react-simple-maps": "^3.0.0",
     "recharts": "^3.8.1",
